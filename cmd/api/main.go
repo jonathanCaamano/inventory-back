@@ -83,7 +83,7 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	authSvc := auth.New(userRepo, cfg.JWTSecret, cfg.JWTTTL)
+	authSvc := auth.New(userRepo, groupRepo, cfg.JWTSecret, cfg.JWTTTL)
 	groupSvc := groups.New(groupRepo)
 	userSvc := users.New(userRepo)
 	productSvc := products.New(productRepo, groupRepo)

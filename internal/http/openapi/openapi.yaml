@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Inventory Back API
-  version: 0.2.0
+  version: 0.3.0
 servers:
   - url: /api/v1
 
@@ -32,6 +32,55 @@ paths:
                 $ref: "#/components/schemas/LoginResponse"
         "401":
           description: Invalid credentials
+
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Register user and join/create a group
+      description: |
+        Creates a non-admin user and assigns them to a group.
+        Group selection is mandatory:
+        - If group_id is provided and exists: user is added as reader.
+        - If group_slug or group_name is provided:
+          - If the group exists: user is added as reader.
+          - If the group does not exist: it is created and the user is added as writer.
+        If no group fields are provided: returns group_required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "400":
+          description: Validation error
+        "404":
+          description: Group not found
+        "409":
+          description: Username already taken
+
+  /auth/groups:
+    get:
+      tags: [auth]
+      summary: List available groups for registration
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Group"
 
   /me:
     get:
@@ -425,6 +474,35 @@ components:
       properties:
         access_token: { type: string }
         token_type: { type: string, example: Bearer }
+
+    RegisterRequest:
+      type: object
+      required: [username, password]
+      oneOf:
+        - required: [group_id]
+        - required: [group_slug]
+        - required: [group_name]
+      properties:
+        username: { type: string, minLength: 3 }
+        password: { type: string, minLength: 8 }
+        group_id: { type: string, format: uuid, nullable: true }
+        group_slug: { type: string, nullable: true }
+        group_name: { type: string, nullable: true }
+
+    RegisterResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, example: Bearer }
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            username: { type: string }
+            is_admin: { type: boolean }
+        group:
+          $ref: "#/components/schemas/Group"
+        role: { type: string, enum: [reader, writer] }
 
     MeProfile:
       type: object

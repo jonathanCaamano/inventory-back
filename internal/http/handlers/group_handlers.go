@@ -21,6 +21,15 @@ func NewGroups(svc *groups.Service) *Groups {
 	return &Groups{svc: svc}
 }
 
+func (h *Groups) PublicList(w http.ResponseWriter, r *http.Request) {
+	items, err := h.svc.ListAll(r.Context())
+	if err != nil {
+		response.Error(w, 500, "internal_error")
+		return
+	}
+	response.JSON(w, 200, map[string]any{"items": items})
+}
+
 func (h *Groups) ListForMe(w http.ResponseWriter, r *http.Request) {
 	uid, err := middleware.UserID(r.Context())
 	if err != nil {

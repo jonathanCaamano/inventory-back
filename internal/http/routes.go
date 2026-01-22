@@ -51,6 +51,8 @@ func NewRouter(cfg config.Config, authSvc *auth.Service, productSvc *products.Se
 	r.Get("/swagger/", swaggerui.Handler)
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Post("/auth/login", auth.Login)
+		api.Post("/auth/register", auth.Register)
+		api.Get("/auth/groups", groups.PublicList)
 
 		api.Group(func(pr chi.Router) {
 			pr.Use(middleware.JWT(cfg.JWTSecret))

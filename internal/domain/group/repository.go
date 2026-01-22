@@ -8,6 +8,10 @@ import (
 
 type Repository interface {
 	ListForUser(ctx context.Context, userID uuid.UUID, isAdmin bool) ([]Group, error)
+	ListAll(ctx context.Context) ([]Group, error)
+	Count(ctx context.Context) (int, error)
+	GetByID(ctx context.Context, id uuid.UUID) (Group, error)
+	GetBySlug(ctx context.Context, slug string) (Group, error)
 	Create(ctx context.Context, slug, name string) (Group, error)
 	AddMember(ctx context.Context, groupID, userID uuid.UUID, role Role) error
 	ListMembers(ctx context.Context, groupID uuid.UUID) ([]Member, error)

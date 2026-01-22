@@ -21,6 +21,54 @@ func NewGroupRepo(pool *pgxpool.Pool) *GroupRepo {
 	return &GroupRepo{pool: pool}
 }
 
+func (r *GroupRepo) Count(ctx context.Context) (int, error) {
+	var n int
+	err := r.pool.QueryRow(ctx, `SELECT count(*) FROM groups`).Scan(&n)
+	return n, err
+}
+
+func (r *GroupRepo) ListAll(ctx context.Context) ([]group.Group, error) {
+	rows, err := r.pool.Query(ctx, `SELECT id, slug, name FROM groups ORDER BY name ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []group.Group{}
+	for rows.Next() {
+		var g group.Group
+		if err := rows.Scan(&g.ID, &g.Slug, &g.Name); err != nil {
+			return nil, err
+		}
+		out = append(out, g)
+	}
+	return out, nil
+}
+
+func (r *GroupRepo) GetByID(ctx context.Context, id uuid.UUID) (group.Group, error) {
+	var g group.Group
+	err := r.pool.QueryRow(ctx, `SELECT id, slug, name FROM groups WHERE id=$1`, id).Scan(&g.ID, &g.Slug, &g.Name)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return group.Group{}, errors.New("not_found")
+		}
+		return group.Group{}, err
+	}
+	return g, nil
+}
+
+func (r *GroupRepo) GetBySlug(ctx context.Context, slug string) (group.Group, error) {
+	var g group.Group
+	err := r.pool.QueryRow(ctx, `SELECT id, slug, name FROM groups WHERE slug=$1`, slug).Scan(&g.ID, &g.Slug, &g.Name)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return group.Group{}, errors.New("not_found")
+		}
+		return group.Group{}, err
+	}
+	return g, nil
+}
+
 func (r *GroupRepo) Create(ctx context.Context, slug, name string) (group.Group, error) {
 	var g group.Group
 	err := r.pool.QueryRow(ctx, `INSERT INTO groups (slug, name) VALUES ($1,$2) RETURNING id, slug, name`, slug, name).Scan(&g.ID, &g.Slug, &g.Name)
@@ -129,8 +177,8 @@ func (r *GroupRepo) ListMembers(ctx context.Context, groupID uuid.UUID) ([]group
 		if err := rows.Scan(&m.UserID, &m.Role, &m.Username, &m.CreatedAt); err != nil {
 			return nil, err
 		}
-		r := group.Role(strings.TrimSpace(m.Role))
-		out = append(out, group.Member{UserID: m.UserID, Username: m.Username, Role: r})
+		rr := group.Role(strings.TrimSpace(m.Role))
+		out = append(out, group.Member{UserID: m.UserID, Username: m.Username, Role: rr})
 	}
 	return out, nil
 }

@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 
@@ -49,7 +51,14 @@ func (r *UserRepo) Create(ctx context.Context, username, password string, isAdmi
 	}
 	var id uuid.UUID
 	err = r.pool.QueryRow(ctx, `INSERT INTO users (username, password_hash, is_admin, is_active) VALUES ($1,$2,$3,true) RETURNING id`, username, string(hash), isAdmin).Scan(&id)
-	return id, err
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return uuid.Nil, errors.New("username_taken")
+		}
+		return uuid.Nil, err
+	}
+	return id, nil
 }
 
 func (r *UserRepo) GetByID(ctx context.Context, id uuid.UUID) (user.User, error) {

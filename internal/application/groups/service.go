@@ -22,6 +22,10 @@ func (s *Service) ListForUser(ctx context.Context, userID uuid.UUID, isAdmin boo
 	return s.repo.ListForUser(ctx, userID, isAdmin)
 }
 
+func (s *Service) ListAll(ctx context.Context) ([]group.Group, error) {
+	return s.repo.ListAll(ctx)
+}
+
 func (s *Service) Create(ctx context.Context, slug, name string) (group.Group, error) {
 	slug = strings.TrimSpace(slug)
 	name = strings.TrimSpace(name)

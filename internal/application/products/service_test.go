@@ -67,6 +67,18 @@ func (f fakeGroupRepo) RemoveMember(ctx context.Context, groupID, userID uuid.UU
 func (f fakeGroupRepo) FindUserIDByUsername(ctx context.Context, username string) (uuid.UUID, error) {
 	return uuid.New(), nil
 }
+func (f fakeGroupRepo) Count(ctx context.Context) (int, error) {
+	return 0, nil
+}
+func (f fakeGroupRepo) GetByID(ctx context.Context, groupID uuid.UUID) (group.Group, error) {
+	return group.Group{}, nil
+}
+func (f fakeGroupRepo) GetBySlug(ctx context.Context, slug string) (group.Group, error) {
+	return group.Group{}, nil
+}
+func (f fakeGroupRepo) ListAll(ctx context.Context) ([]group.Group, error) {
+	return nil, nil
+}
 
 func TestCreateRequiresWriterForNonAdmin(t *testing.T) {
 	ctx := context.Background()
