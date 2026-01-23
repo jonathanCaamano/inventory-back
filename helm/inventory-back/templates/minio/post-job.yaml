@@ -1,0 +1,97 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-post-job
+  namespace: {{ .Values.cluster_configuration.namespace | default "argo-workflows" }}
+  labels:
+    app: minio-argo-workflows-sentijobs-job
+spec:
+  template:
+    metadata:
+      labels:
+        app: minio-argo-workflows-sentijobs-job
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+        - name: etc-path
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: minio-configuration
+          projected:
+            sources:
+              - configMap:
+                  name: minio-argo-workflows-sentijobs
+              - secret:
+                  name: paas-argo-workflows-minio-secret
+      serviceAccountName: minio-sa
+      containers:
+        - name: minio-make-bucket
+          image: "{{ .Values.cluster_configuration.registry }}/itxapps/paas.mc:RELEASE.2024-03-03T00-13-08Z"
+          imagePullPolicy: IfNotPresent
+          command: [ "/bin/sh", "/config/initialize" ]
+          env:
+            - name: MINIO_ENDPOINT
+              value: minio-argo-workflows-sentijobs
+            - name: MINIO_PORT
+              value: "9000"
+          volumeMounts:
+            - name: etc-path
+              mountPath: /etc/minio/mc
+            - name: tmp
+              mountPath: /tmp
+            - name: minio-configuration
+              mountPath: /config
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: "1"
+              memory: 512Mi
+        - name: minio-make-user
+          image: "{{ .Values.cluster_configuration.registry }}/itxapps/paas.mc:RELEASE.2024-03-03T00-13-08Z"
+          imagePullPolicy: IfNotPresent
+          command: [ "/bin/sh", "/config/add-user" ]
+          env:
+            - name: MINIO_ENDPOINT
+              value: minio-argo-workflows-sentijobs
+            - name: MINIO_PORT
+              value: "9000"
+          volumeMounts:
+            - name: etc-path
+              mountPath: /etc/minio/mc
+            - name: tmp
+              mountPath: /tmp
+            - name: minio-configuration
+              mountPath: /config
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: "1"
+              memory: 512Mi
+        - name: minio-custom-command
+          image: "{{ .Values.cluster_configuration.registry }}/itxapps/paas.mc:RELEASE.2024-03-03T00-13-08Z"
+          imagePullPolicy: IfNotPresent
+          command: [ "/bin/sh", "/config/custom-command" ]
+          env:
+            - name: MINIO_ENDPOINT
+              value: minio-argo-workflows-sentijobs
+            - name: MINIO_PORT
+              value: "9000"
+          volumeMounts:
+            - name: etc-path
+              mountPath: /etc/minio/mc
+            - name: tmp
+              mountPath: /tmp
+            - name: minio-configuration
+              mountPath: /config
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: "1"
+              memory: 512Mi
