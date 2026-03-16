@@ -40,7 +40,9 @@ func TestHealthHandler_Live(t *testing.T) {
 	}
 
 	var body map[string]string
-	json.Unmarshal(w.Body.Bytes(), &body)
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 	if body["status"] != "alive" {
 		t.Errorf("expected status=alive, got %q", body["status"])
 	}
@@ -62,7 +64,9 @@ func TestHealthHandler_Health_DBUp_NoMinio(t *testing.T) {
 	}
 
 	var body healthResponse
-	json.Unmarshal(w.Body.Bytes(), &body)
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 	if body.Status != "ok" {
 		t.Errorf("expected status ok, got %q", body.Status)
 	}
@@ -90,7 +94,9 @@ func TestHealthHandler_Health_MinioUp(t *testing.T) {
 	}
 
 	var body healthResponse
-	json.Unmarshal(w.Body.Bytes(), &body)
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 	if body.Components["storage"].Status != "up" {
 		t.Errorf("expected storage up, got %q", body.Components["storage"].Status)
 	}
@@ -113,7 +119,9 @@ func TestHealthHandler_Health_MinioDown_StillOK(t *testing.T) {
 	}
 
 	var body healthResponse
-	json.Unmarshal(w.Body.Bytes(), &body)
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 	if body.Components["storage"].Status != "down" {
 		t.Errorf("expected storage down, got %q", body.Components["storage"].Status)
 	}

@@ -2,11 +2,9 @@ package handlers
 
 import (
 	"errors"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -110,32 +108,6 @@ func (m *mockCategoryRepo) Delete(id uuid.UUID) error {
 		return m.deleteFn(id)
 	}
 	return nil
-}
-
-type mockMinioSvc struct {
-	getPresignedURLFn    func(key string, expiry time.Duration) (string, error)
-	uploadProductImageFn func(file multipart.File, header *multipart.FileHeader) (string, error)
-	deleteObjectFn       func(key string)
-}
-
-func (m *mockMinioSvc) GetPresignedURL(key string, expiry time.Duration) (string, error) {
-	if m.getPresignedURLFn != nil {
-		return m.getPresignedURLFn(key, expiry)
-	}
-	return "http://example.com/image.jpg", nil
-}
-
-func (m *mockMinioSvc) UploadProductImage(file multipart.File, header *multipart.FileHeader) (string, error) {
-	if m.uploadProductImageFn != nil {
-		return m.uploadProductImageFn(file, header)
-	}
-	return "products/test-key.jpg", nil
-}
-
-func (m *mockMinioSvc) DeleteObject(key string) {
-	if m.deleteObjectFn != nil {
-		m.deleteObjectFn(key)
-	}
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
