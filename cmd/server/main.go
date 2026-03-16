@@ -129,6 +129,7 @@ func main() {
 		middleware.LoginRateLimiter(10, 15*time.Minute),
 		authHandler.Login,
 	)
+	api.POST("/auth/register", authHandler.Register)
 	api.POST("/auth/refresh", authHandler.Refresh)
 
 	// Authenticated routes

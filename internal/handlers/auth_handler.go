@@ -18,10 +18,12 @@ type authService interface {
 	Refresh(rawToken string) (*services.TokenPair, *models.User, error)
 	Logout(rawToken string) error
 	LogoutAll(userID uuid.UUID) error
+	HashPassword(password string) (string, error)
 }
 
 type authUserRepo interface {
 	FindByID(id uuid.UUID) (*models.User, error)
+	Create(user *models.User) error
 }
 
 type AuthHandler struct {
@@ -44,6 +46,12 @@ type refreshRequest struct {
 
 type logoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
+}
+
+type registerRequest struct {
+	Username string `json:"username" binding:"required,min=3,max=50"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -135,4 +143,45 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, user)
+}
+
+func (h *AuthHandler) Register(c *gin.Context) {
+	var req registerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	hash, err := h.authSvc.HashPassword(req.Password)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user := &models.User{
+		Username:     req.Username,
+		Email:        req.Email,
+		PasswordHash: hash,
+		Role:         models.RoleViewer,
+		Active:       true,
+	}
+
+	if err := h.userRepo.Create(user); err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "username or email already exists"})
+		return
+	}
+
+	pair, _, err := h.authSvc.Login(req.Username, req.Password)
+	if err != nil {
+		slog.Error("register auto-login error", slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "registration succeeded but login failed"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"access_token":  pair.AccessToken,
+		"refresh_token": pair.RefreshToken,
+		"expires_at":    pair.ExpiresAt,
+		"user":          user,
+	})
 }
