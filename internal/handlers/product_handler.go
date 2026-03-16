@@ -76,10 +76,6 @@ type UpdateProductRequest struct {
 	Active      *bool      `json:"active"`
 }
 
-type StockAdjustRequest struct {
-	Delta int    `json:"delta" binding:"required"`
-	Note  string `json:"note" binding:"max=200"`
-}
 
 func (h *ProductHandler) List(c *gin.Context) {
 	filter := repository.ProductFilter{Page: 1, PageSize: 20}
@@ -357,45 +353,6 @@ func (h *ProductHandler) UploadImage(c *gin.Context) {
 
 	imageURL, _ := h.minioSvc.GetPresignedURL(objectKey, time.Hour)
 	c.JSON(http.StatusOK, gin.H{"image_url": imageURL})
-}
-
-// AdjustStock increments or decrements stock by a delta value.
-func (h *ProductHandler) AdjustStock(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID"})
-		return
-	}
-
-	var req StockAdjustRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	product, err := h.productRepo.FindByID(id)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch product"})
-		return
-	}
-
-	newStock := product.Stock + req.Delta
-	if newStock < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "insufficient stock"})
-		return
-	}
-	product.Stock = newStock
-
-	if err := h.productRepo.Update(product); err != nil {
-		slog.Error("adjust stock", slog.String("id", id.String()), slog.String("error", err.Error()))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update stock"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"stock": product.Stock})
 }
 
 // enrichImageURLs populates ImageURL from ImageKey for a slice of products.

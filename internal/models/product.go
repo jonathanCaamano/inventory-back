@@ -12,7 +12,6 @@ type Product struct {
 	Name        string         `gorm:"not null" json:"name"`
 	Description string         `json:"description"`
 	Price       float64        `gorm:"not null;default:0" json:"price"`
-	Stock       int            `gorm:"not null;default:0" json:"stock"`
 	SKU         string         `gorm:"uniqueIndex" json:"sku,omitempty"`
 	ImageURL    string         `json:"image_url,omitempty"`
 	ImageKey    string         `gorm:"column:image_key" json:"-"` // MinIO object key

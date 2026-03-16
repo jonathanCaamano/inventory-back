@@ -159,7 +159,6 @@ func main() {
 			manage.PUT("/products/:id", productHandler.Update)
 			manage.DELETE("/products/:id", productHandler.Delete)
 			manage.POST("/products/:id/image", productHandler.UploadImage)
-			manage.PATCH("/products/:id/stock", productHandler.AdjustStock)
 			manage.PUT("/products/:id/contact", contactHandler.Upsert)
 			manage.DELETE("/products/:id/contact", contactHandler.Delete)
 		}
