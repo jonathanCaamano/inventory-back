@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 3m
 
@@ -7,8 +9,4 @@ linters:
     - govet
     - staticcheck
     - ineffassign
-    - gofmt
     - unused
-
-issues:
-  exclude-use-default: false

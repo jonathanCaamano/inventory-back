@@ -72,11 +72,10 @@ kind: Ingress
 metadata:
   name: inventory-back-ingress
   namespace: inventory
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
+  ingressClassName: nginx
   rules:
-    - host: api.inventory.local
+    - host: invent-back.jcrlabs.net
       http:
         paths:
           - path: /

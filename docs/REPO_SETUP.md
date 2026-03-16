@@ -61,6 +61,18 @@ The `GHCR_PAT` secret is only needed by the Kubernetes cluster to pull the image
 
 ---
 
+## Kubernetes Ingress
+
+The API is exposed via the cluster's nginx ingress controller:
+
+| Domain | Service |
+|---|---|
+| `invent-back.jcrlabs.net` | `inventory-back-service:8080` |
+
+Make sure a DNS `A` record points `invent-back.jcrlabs.net` to the cluster's ingress IP.
+
+---
+
 ## Kubernetes secrets applied by CD
 
 The deploy job creates/updates these K8s resources automatically from the GitHub Secrets above:

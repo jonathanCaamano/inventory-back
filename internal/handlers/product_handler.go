@@ -316,7 +316,7 @@ func (h *ProductHandler) UploadImage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "image file required"})
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Delete old image (best-effort)
 	if product.ImageKey != "" {
