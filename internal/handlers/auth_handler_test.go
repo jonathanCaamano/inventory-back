@@ -19,10 +19,12 @@ import (
 // ── mocks ────────────────────────────────────────────────────────────────────
 
 type mockAuthSvc struct {
-	loginFn     func(id, pw string) (*services.TokenPair, *models.User, error)
-	refreshFn   func(tok string) (*services.TokenPair, *models.User, error)
-	logoutFn    func(tok string) error
-	logoutAllFn func(id uuid.UUID) error
+	loginFn         func(id, pw string) (*services.TokenPair, *models.User, error)
+	refreshFn       func(tok string) (*services.TokenPair, *models.User, error)
+	logoutFn        func(tok string) error
+	logoutAllFn     func(id uuid.UUID) error
+	hashPasswordFn  func(pw string) (string, error)
+	checkPasswordFn func(hash, plain string) bool
 }
 
 func (m *mockAuthSvc) Login(id, pw string) (*services.TokenPair, *models.User, error) {
@@ -33,13 +35,42 @@ func (m *mockAuthSvc) Refresh(tok string) (*services.TokenPair, *models.User, er
 }
 func (m *mockAuthSvc) Logout(tok string) error      { return m.logoutFn(tok) }
 func (m *mockAuthSvc) LogoutAll(id uuid.UUID) error { return m.logoutAllFn(id) }
+func (m *mockAuthSvc) HashPassword(pw string) (string, error) {
+	if m.hashPasswordFn != nil {
+		return m.hashPasswordFn(pw)
+	}
+	return pw, nil
+}
+func (m *mockAuthSvc) CheckPassword(hash, plain string) bool {
+	if m.checkPasswordFn != nil {
+		return m.checkPasswordFn(hash, plain)
+	}
+	return hash == plain
+}
 
 type mockAuthUserRepo struct {
 	findByIDFn func(id uuid.UUID) (*models.User, error)
+	createFn   func(user *models.User) error
+	updateFn   func(user *models.User) error
 }
 
 func (m *mockAuthUserRepo) FindByID(id uuid.UUID) (*models.User, error) {
-	return m.findByIDFn(id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id)
+	}
+	return nil, errors.New("not implemented")
+}
+func (m *mockAuthUserRepo) Create(user *models.User) error {
+	if m.createFn != nil {
+		return m.createFn(user)
+	}
+	return nil
+}
+func (m *mockAuthUserRepo) Update(user *models.User) error {
+	if m.updateFn != nil {
+		return m.updateFn(user)
+	}
+	return nil
 }
 
 func fakePair() *services.TokenPair {
