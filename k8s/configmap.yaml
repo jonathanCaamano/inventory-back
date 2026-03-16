@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: inventory-back-config
-  namespace: inventory
+  namespace: taller-inventario
 data:
   PORT: "8080"
   ENV: "production"

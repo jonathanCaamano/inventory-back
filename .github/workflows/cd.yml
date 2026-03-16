@@ -1,6 +1,5 @@
 name: CD
 
-# Runs on every push to main and on semver tags (v1.2.3)
 on:
   push:
     branches: [main]
@@ -8,16 +7,14 @@ on:
 
 permissions:
   contents: read
-  packages: write   # required to push to GHCR
+  packages: write
 
 env:
-  REGISTRY: ghcr.io
-  # github.repository → "jonathanCaamano/inventory-back"
-  # GHCR normalises the owner to lowercase automatically.
   IMAGE: ghcr.io/${{ github.repository_owner }}/inventory-back
+  NAMESPACE: taller-inventario
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JOB 1 — Build the Go binary, then build & push the Docker image to GHCR
+# JOB 1 — Build & push Docker image to GHCR
 # ─────────────────────────────────────────────────────────────────────────────
 jobs:
   build-push:
@@ -25,13 +22,11 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      # Short image tag used by the deploy job (e.g. "sha-abc1234" or "v1.2.3")
       image-tag: ${{ steps.meta.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
 
-      # Validate binary compiles before we bother building a Docker image
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -40,20 +35,18 @@ jobs:
       - name: Verify binary compiles
         run: go build -o /dev/null ./cmd/server
 
-      # ── Docker setup ────────────────────────────────────────────────────────
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Tagging strategy:
-      #   push to main → latest + sha-<short>
-      #   push v1.2.3  → 1.2.3 + 1.2 + latest
+      # push to main → latest + sha-<short>
+      # push v1.2.3  → 1.2.3 + 1.2 + latest
       - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -65,7 +58,7 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push image
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -73,27 +66,22 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # GitHub Actions cache keeps layer cache across runs
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JOB 2 — Deploy the new image to Kubernetes
+# JOB 2 — Deploy to Kubernetes
 #
 # Required GitHub secrets:
-#   KUBECONFIG       — base64-encoded kubeconfig for the target cluster
-#   DB_PASSWORD      — PostgreSQL password
-#   JWT_SECRET       — JWT signing secret (≥ 32 chars)
-#   MINIO_ACCESS_KEY — MinIO / S3 access key
-#   MINIO_SECRET_KEY — MinIO / S3 secret key
-#   GHCR_PAT         — Personal Access Token with read:packages scope
-#                      (used by the K8s cluster to pull from GHCR)
+#   KUBECONFIG   — base64-encoded kubeconfig  (base64 -w0 ~/.kube/config)
+#   DB_PASSWORD  — PostgreSQL password
+#   JWT_SECRET   — JWT signing key, min 32 chars  (openssl rand -hex 32)
+#   GHCR_PAT     — PAT with read:packages scope, for cluster image pulls
 # ─────────────────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to Kubernetes
     needs: build-push
     runs-on: ubuntu-latest
-    # "production" environment can require manual approval in GitHub settings
     environment: production
 
     steps:
@@ -108,7 +96,6 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
 
-      # ── Resolve exact image tag ──────────────────────────────────────────────
       - name: Resolve image tag
         id: tag
         run: |
@@ -118,23 +105,25 @@ jobs:
             echo "value=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           fi
 
-      # ── Namespace & ConfigMap ─────────────────────────────────────────────────
+      # ── Namespace & ConfigMap ────────────────────────────────────────────────
       - name: Apply namespace
         run: kubectl apply -f k8s/namespace.yaml
 
       - name: Apply ConfigMap
         run: kubectl apply -f k8s/configmap.yaml
 
-      # ── Secrets (managed via GH Secrets, never committed in plaintext) ────────
+      # ── Secrets ─────────────────────────────────────────────────────────────
+      # MinIO credentials are fixed for the in-cluster MinIO instance.
+      # DB_PASSWORD and JWT_SECRET come from GitHub Secrets.
       - name: Create / update application secret
         run: |
           kubectl create secret generic inventory-back-secrets \
             --from-literal=DB_USER=inventory \
             --from-literal=DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
             --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-            --from-literal=MINIO_ACCESS_KEY="${{ secrets.MINIO_ACCESS_KEY }}" \
-            --from-literal=MINIO_SECRET_KEY="${{ secrets.MINIO_SECRET_KEY }}" \
-            --namespace=inventory \
+            --from-literal=MINIO_ACCESS_KEY="minioadmin" \
+            --from-literal=MINIO_SECRET_KEY="minioadmin" \
+            --namespace=${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create / update GHCR image pull secret
@@ -143,28 +132,27 @@ jobs:
             --docker-server=ghcr.io \
             --docker-username="${{ github.actor }}" \
             --docker-password="${{ secrets.GHCR_PAT }}" \
-            --namespace=inventory \
+            --namespace=${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      # ── Infrastructure (idempotent applies) ──────────────────────────────────
+      # ── Infrastructure ───────────────────────────────────────────────────────
       - name: Apply PostgreSQL
         run: kubectl apply -f k8s/postgres.yaml
 
       - name: Apply MinIO
         run: kubectl apply -f k8s/minio.yaml
 
-      # ── Deployment ───────────────────────────────────────────────────────────
+      # ── Application ──────────────────────────────────────────────────────────
       - name: Apply Deployment / Service / Ingress
         run: kubectl apply -f k8s/deployment.yaml
 
       - name: Update image tag
         run: |
-          FULL_IMAGE="${{ env.IMAGE }}:${{ steps.tag.outputs.value }}"
           kubectl set image deployment/inventory-back \
-            inventory-back="${FULL_IMAGE}" \
-            --namespace=inventory
+            inventory-back="${{ env.IMAGE }}:${{ steps.tag.outputs.value }}" \
+            --namespace=${{ env.NAMESPACE }}
 
       - name: Wait for rollout
         run: |
           kubectl rollout status deployment/inventory-back \
-            --namespace=inventory --timeout=5m
+            --namespace=${{ env.NAMESPACE }} --timeout=5m

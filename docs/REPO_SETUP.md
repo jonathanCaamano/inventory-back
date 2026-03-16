@@ -14,8 +14,6 @@ Set everything under **Settings → Secrets and variables → Actions**.
 | `KUBECONFIG` | kubeconfig of the target cluster, **base64-encoded** | `base64 -w0 ~/.kube/config` |
 | `DB_PASSWORD` | PostgreSQL password for the `inventory` user | Choose a strong password |
 | `JWT_SECRET` | JWT signing key — **minimum 32 characters** | `openssl rand -hex 32` |
-| `MINIO_ACCESS_KEY` | MinIO / S3-compatible access key | Set in MinIO admin panel |
-| `MINIO_SECRET_KEY` | MinIO / S3-compatible secret key | Set in MinIO admin panel |
 | `GHCR_PAT` | Personal Access Token for the cluster to pull images from GHCR | [Create PAT](https://github.com/settings/tokens) with scope `read:packages` |
 
 ---
@@ -78,15 +76,17 @@ Make sure a DNS `A` record points `invent-back.jcrlabs.net` to the cluster's ing
 The deploy job creates/updates these K8s resources automatically from the GitHub Secrets above:
 
 ```bash
-# Application secret  (namespace: inventory)
+# Application secret  (namespace: taller-inventario)
+# MinIO credentials are hardcoded (minioadmin) — no GitHub secret needed.
 kubectl create secret generic inventory-back-secrets \
   --from-literal=DB_USER=inventory \
   --from-literal=DB_PASSWORD="<DB_PASSWORD>" \
   --from-literal=JWT_SECRET="<JWT_SECRET>" \
-  --from-literal=MINIO_ACCESS_KEY="<MINIO_ACCESS_KEY>" \
-  --from-literal=MINIO_SECRET_KEY="<MINIO_SECRET_KEY>"
+  --from-literal=MINIO_ACCESS_KEY="minioadmin" \
+  --from-literal=MINIO_SECRET_KEY="minioadmin" \
+  --namespace=taller-inventario
 
-# Image pull secret  (namespace: inventory)
+# Image pull secret  (namespace: taller-inventario)
 kubectl create secret docker-registry ghcr-secret \
   --docker-server=ghcr.io \
   --docker-username=<actor> \

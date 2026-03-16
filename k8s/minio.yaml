@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: minio-pvc
-  namespace: inventory
+  namespace: taller-inventario
 spec:
   accessModes:
     - ReadWriteOnce
@@ -14,7 +14,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: minio
-  namespace: inventory
+  namespace: taller-inventario
 spec:
   replicas: 1
   selector:
@@ -72,7 +72,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: minio-service
-  namespace: inventory
+  namespace: taller-inventario
 spec:
   selector:
     app: minio
