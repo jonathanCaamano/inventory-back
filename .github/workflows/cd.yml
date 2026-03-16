@@ -73,10 +73,12 @@ jobs:
 # JOB 2 — Deploy to Kubernetes
 #
 # Required GitHub secrets:
-#   KUBECONFIG   — base64-encoded kubeconfig  (base64 -w0 ~/.kube/config)
-#   DB_PASSWORD  — PostgreSQL password
-#   JWT_SECRET   — JWT signing key, min 32 chars  (openssl rand -hex 32)
-#   GHCR_PAT     — PAT with read:packages scope, for cluster image pulls
+#   KUBECONFIG        — base64-encoded kubeconfig  (base64 -w0 ~/.kube/config)
+#   DB_PASSWORD       — PostgreSQL password
+#   JWT_SECRET        — JWT signing key, min 32 chars  (openssl rand -hex 32)
+#   MINIO_ACCESS_KEY  — MinIO access key
+#   MINIO_SECRET_KEY  — MinIO secret key
+#   GHCR_PAT          — PAT with read:packages scope, for cluster image pulls
 # ─────────────────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to Kubernetes
@@ -113,16 +115,14 @@ jobs:
         run: kubectl apply -f k8s/configmap.yaml
 
       # ── Secrets ─────────────────────────────────────────────────────────────
-      # MinIO credentials are fixed for the in-cluster MinIO instance.
-      # DB_PASSWORD and JWT_SECRET come from GitHub Secrets.
       - name: Create / update application secret
         run: |
           kubectl create secret generic inventory-back-secrets \
             --from-literal=DB_USER=inventory \
             --from-literal=DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
             --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-            --from-literal=MINIO_ACCESS_KEY="minioadmin" \
-            --from-literal=MINIO_SECRET_KEY="minioadmin" \
+            --from-literal=MINIO_ACCESS_KEY="${{ secrets.MINIO_ACCESS_KEY }}" \
+            --from-literal=MINIO_SECRET_KEY="${{ secrets.MINIO_SECRET_KEY }}" \
             --namespace=${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 

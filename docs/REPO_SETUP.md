@@ -14,6 +14,8 @@ Set everything under **Settings → Secrets and variables → Actions**.
 | `KUBECONFIG` | kubeconfig of the target cluster, **base64-encoded** | `base64 -w0 ~/.kube/config` |
 | `DB_PASSWORD` | PostgreSQL password for the `inventory` user | Choose a strong password |
 | `JWT_SECRET` | JWT signing key — **minimum 32 characters** | `openssl rand -hex 32` |
+| `MINIO_ACCESS_KEY` | MinIO access key | Set in MinIO admin panel |
+| `MINIO_SECRET_KEY` | MinIO secret key | Set in MinIO admin panel |
 | `GHCR_PAT` | Personal Access Token for the cluster to pull images from GHCR | [Create PAT](https://github.com/settings/tokens) with scope `read:packages` |
 
 ---
