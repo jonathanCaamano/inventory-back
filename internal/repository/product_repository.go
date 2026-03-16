@@ -28,7 +28,8 @@ func (r *ProductRepository) FindAll(filter ProductFilter) ([]models.Product, int
 
 	query := r.db.Model(&models.Product{}).
 		Preload("Category").
-		Preload("CreatedBy")
+		Preload("CreatedBy").
+		Preload("Contact")
 
 	if filter.CategoryID != nil {
 		query = query.Where("category_id = ?", filter.CategoryID)
@@ -57,7 +58,7 @@ func (r *ProductRepository) FindAll(filter ProductFilter) ([]models.Product, int
 
 func (r *ProductRepository) FindByID(id uuid.UUID) (*models.Product, error) {
 	var product models.Product
-	if err := r.db.Preload("Category").Preload("CreatedBy").
+	if err := r.db.Preload("Category").Preload("CreatedBy").Preload("Contact").
 		First(&product, "id = ?", id).Error; err != nil {
 		return nil, err
 	}

@@ -56,6 +56,7 @@ func main() {
 	tokenRepo := repository.NewRefreshTokenRepository(db)
 	productRepo := repository.NewProductRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
+	contactRepo := repository.NewContactRepository(db)
 
 	// Services
 	authSvc := services.NewAuthService(userRepo, tokenRepo, cfg.JWTSecret, cfg.JWTAccessTTLHours)
@@ -65,6 +66,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(userRepo, authSvc)
 	productHandler := handlers.NewProductHandler(productRepo, categoryRepo, minioSvc)
 	categoryHandler := handlers.NewCategoryHandler(categoryRepo)
+	contactHandler := handlers.NewContactHandler(contactRepo, productRepo)
 	statsHandler := handlers.NewStatsHandler(db)
 
 	var minioCheck func() bool
@@ -146,6 +148,7 @@ func main() {
 		// Products — viewer+
 		auth.GET("/products", productHandler.List)
 		auth.GET("/products/:id", productHandler.Get)
+		auth.GET("/products/:id/contact", contactHandler.Get)
 
 		// Products — manager+
 		manage := auth.Group("")
@@ -155,6 +158,8 @@ func main() {
 			manage.PUT("/products/:id", productHandler.Update)
 			manage.POST("/products/:id/image", productHandler.UploadImage)
 			manage.PATCH("/products/:id/stock", productHandler.AdjustStock)
+			manage.PUT("/products/:id/contact", contactHandler.Upsert)
+			manage.DELETE("/products/:id/contact", contactHandler.Delete)
 		}
 
 		// Products — admin only
