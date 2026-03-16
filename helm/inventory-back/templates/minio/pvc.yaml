@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-argo-workflows-sentijobs
+  namespace: {{ .Values.cluster_configuration.namespace | default "argo-workflows" }}
+  labels:
+    app: minio-argo-workflows-sentijobs
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "5Gi"

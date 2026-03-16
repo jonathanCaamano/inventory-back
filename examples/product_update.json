@@ -1,0 +1,10 @@
+{
+  "name": "Chaqueta",
+  "description": "Chaqueta de invierno (actualizada)",
+  "price": 69.99,
+  "paid": true,
+  "status": "active",
+  "entry_date": "2026-01-22T00:00:00Z",
+  "exit_date": null,
+  "observations": "Rebaja"
+}

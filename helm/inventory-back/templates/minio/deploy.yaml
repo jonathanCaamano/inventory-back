@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-argo-workflows-sentijobs
+  namespace: {{ .Values.cluster_configuration.namespace | default "argo-workflows" }}
+  labels:
+    app: minio-argo-workflows-sentijobs
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio-argo-workflows-sentijobs
+  template:
+    metadata:
+      name: minio-argo-workflows-sentijobs
+      labels:
+        app: minio-argo-workflows-sentijobs
+      annotations:
+        checksum/secrets: 10b4e580c3960e4395a874859db8bd139517d15f108486a0162362c9c32de42f
+        checksum/config: 89369c65fbda997f8bc65f01126126bd3d0e3b7a438c4516450a66f378ada4a8
+        prometheus.io/annotation: 'minio-argo-workflows-sentijobs'
+    spec:
+      serviceAccountName: minio-sa
+      containers:
+        - name: minio-argo-workflows-sentijobs
+          image: "ghcr.io/jonathancaamano/minio:latest"
+          imagePullPolicy: IfNotPresent
+          command:
+            - "/bin/sh"
+            - "-ce"
+            - "/usr/bin/docker-entrypoint.sh minio server /export -S /etc/minio/certs/ --address :9000 --console-address :9001"
+          volumeMounts:
+            - name: minio-user
+              mountPath: "/tmp/credentials"
+              readOnly: true
+            - name: export
+              mountPath: /export
+          ports:
+            - name: http
+              containerPort: 9000
+            - name: http-console
+              containerPort: 9001
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: paas-argo-workflows-minio-secret
+                  key: rootUser
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: paas-argo-workflows-minio-secret
+                  key: rootPassword
+            - name: MINIO_PROMETHEUS_AUTH_TYPE
+              value: "public"
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: export
+          persistentVolumeClaim:
+            claimName: minio-argo-workflows-sentijobs
+        - name: minio-user
+          secret:
+            secretName: paas-argo-workflows-minio-secret

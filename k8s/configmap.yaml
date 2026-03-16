@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-back-config
+  namespace: taller-inventario
+data:
+  PORT: "8080"
+  ENV: "production"
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "inventory"
+  DB_SSL_MODE: "disable"
+  MINIO_ENDPOINT: "minio-service:9000"
+  MINIO_BUCKET: "inventory"
+  MINIO_USE_SSL: "false"

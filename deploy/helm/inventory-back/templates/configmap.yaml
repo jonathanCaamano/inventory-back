@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "inventory-back.fullname" . }}
+data:
+  ENV: "{{ .Values.config.ENV }}"
+  HTTP_ADDR: "{{ .Values.config.HTTP_ADDR }}"
+  S3_REGION: "{{ .Values.config.S3_REGION }}"
+  S3_FORCE_PATH_STYLE: "{{ .Values.config.S3_FORCE_PATH_STYLE }}"
+  S3_BUCKET: "{{ .Values.config.S3_BUCKET }}"
+  S3_ENDPOINT: "{{ .Values.config.S3_ENDPOINT }}"
+  S3_PUBLIC_BASE_URL: "{{ .Values.config.S3_PUBLIC_BASE_URL }}"

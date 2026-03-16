@@ -1,0 +1,19 @@
+{
+  "group_id": "00000000-0000-0000-0000-000000000000",
+  "name": "Chaqueta",
+  "description": "Chaqueta de invierno",
+  "price": 79.99,
+  "paid": false,
+  "status": "active",
+  "entry_date": "2026-01-22T00:00:00Z",
+  "exit_date": null,
+  "observations": "Talla M",
+  "contact": {
+    "first_name": "Ana",
+    "last_name": "Perez",
+    "phone_number": "+34 600 000 000"
+  },
+  "images": [
+    {"image_url": "https://cdn.example.com/img1.jpg", "position": 1}
+  ]
+}
