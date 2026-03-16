@@ -1,2 +1,149 @@
 # inventory-back
 Repo used to create a inventory backend for jcrlabs
+
+---
+
+## Arquitectura del repositorio
+
+### Diagrama de flujo — ciclo de vida de una petición HTTP
+
+```mermaid
+flowchart TD
+    Client([Cliente / Frontend]) -->|HTTP Request| CORS[CORS + Request-ID]
+    CORS --> RL{Ruta pública?}
+
+    RL -->|Sí — /auth/login| RateLimiter[Rate Limiter\n10 req / 15 min por IP]
+    RL -->|No| JWT[JWT Auth Middleware]
+
+    RateLimiter --> AuthHandler[AuthHandler\nLogin / Refresh]
+    JWT -->|Token inválido| 401([401 Unauthorized])
+    JWT -->|Token válido| RoleCheck{¿Permiso\nde rol?}
+
+    RoleCheck -->|Insuficiente| 403([403 Forbidden])
+    RoleCheck -->|OK| Handler[Handler\nProduct / Category / User / Stats]
+
+    Handler --> Service[Service Layer\nAuth / MinIO]
+    Handler --> Repo[Repository Layer]
+    Repo --> PG[(PostgreSQL\nGORM)]
+    Service --> MinIO[(MinIO S3\nimage storage)]
+
+    Handler -->|JSON response| Client
+```
+
+---
+
+### Diagrama de casos de uso — roles y permisos
+
+```mermaid
+graph LR
+    subgraph Roles
+        Admin(["Admin"])
+        Manager(["Manager"])
+        Viewer(["Viewer"])
+    end
+
+    subgraph Auth
+        login[Login / Refresh / Logout]
+        me[Ver perfil propio]
+    end
+
+    subgraph Productos
+        list_p[Listar / Ver productos]
+        create_p[Crear producto]
+        edit_p[Editar producto / stock]
+        upload_img[Subir imagen]
+        delete_p[Eliminar producto]
+    end
+
+    subgraph Categorías
+        list_c[Listar / Ver categorías]
+        create_c[Crear / Editar categoría]
+        delete_c[Eliminar categoría]
+    end
+
+    subgraph Usuarios
+        list_u[Listar / Ver usuarios]
+        manage_u[Crear / Editar / Eliminar usuarios]
+    end
+
+    subgraph Stats
+        stats[Ver estadísticas globales]
+    end
+
+    Admin --> login & me & list_p & create_p & edit_p & upload_img & delete_p
+    Admin --> list_c & create_c & delete_c & list_u & manage_u & stats
+
+    Manager --> login & me & list_p & create_p & edit_p & upload_img
+    Manager --> list_c & create_c & stats
+
+    Viewer --> login & me & list_p & list_c & stats
+```
+
+---
+
+### Diagrama de arquitectura — despliegue en Kubernetes
+
+```mermaid
+graph TB
+    subgraph Internet
+        Browser([Navegador / API Client])
+    end
+
+    subgraph GitHub
+        GHActions[GitHub Actions CI/CD]
+        GHCR[ghcr.io/jonathancaamano/inventory-back]
+    end
+
+    subgraph "Kubernetes — namespace: taller-inventario"
+        Ingress["nginx Ingress\ninvent-back.jcrlabs.net"]
+
+        subgraph "inventory-back"
+            API1[Pod replica 1\n:8080]
+            API2[Pod replica 2\n:8080]
+        end
+
+        SVC[ClusterIP Service\n:8080]
+
+        subgraph Datos
+            PG[(PostgreSQL\n:5432\nPVC 10Gi)]
+            MIO[(MinIO\n:9000\nPVC 20Gi)]
+        end
+    end
+
+    Browser -->|HTTPS| Ingress
+    Ingress --> SVC
+    SVC --> API1 & API2
+    API1 & API2 --> PG
+    API1 & API2 --> MIO
+
+    GHActions -->|push image| GHCR
+    GHActions -->|kubectl set image| API1 & API2
+    GHCR -->|pull| API1 & API2
+```
+
+---
+
+### Estructura interna del servicio Go
+
+```mermaid
+graph LR
+    subgraph cmd/server
+        Main[main.go\nwiring + HTTP server]
+    end
+
+    subgraph internal
+        Config[config]
+        DB[database\nconnect + migrate]
+        Models[models\nUser / Product / Category / RefreshToken]
+        Repo[repository\nCRUD + queries]
+        Services[services\nAuthService / MinIOService]
+        Handlers[handlers\nHTTP layer]
+        Middleware[middleware\nJWT / RateLimit / CORS / Logger]
+    end
+
+    Main --> Config & DB & Models
+    Main --> Repo & Services & Handlers & Middleware
+    Handlers --> Services & Repo
+    Services --> Repo
+    Repo --> Models
+```
