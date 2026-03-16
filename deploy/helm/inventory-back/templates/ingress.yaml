@@ -5,6 +5,7 @@ metadata:
   name: {{ include "inventory-back.fullname" . }}
   annotations:
     kubernetes.io/ingress.class: {{ .Values.ingress.className }}
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
 spec:
   {{- if .Values.ingress.tls.enabled }}
   tls:
