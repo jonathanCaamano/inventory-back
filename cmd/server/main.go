@@ -116,6 +116,12 @@ func main() {
 	r.GET("/health", healthHandler.Health)
 	r.GET("/livez", healthHandler.Live)
 
+	// Swagger UI — public, no auth required
+	swaggerHandler := handlers.NewSwaggerHandler()
+	r.GET("/swagger", swaggerHandler.UI)
+	r.GET("/swagger/", swaggerHandler.UI)
+	r.GET("/swagger/doc.json", swaggerHandler.Spec)
+
 	api := r.Group("/api/v1")
 
 	// Public routes
