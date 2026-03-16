@@ -31,8 +31,8 @@ func (m *mockAuthSvc) Login(id, pw string) (*services.TokenPair, *models.User, e
 func (m *mockAuthSvc) Refresh(tok string) (*services.TokenPair, *models.User, error) {
 	return m.refreshFn(tok)
 }
-func (m *mockAuthSvc) Logout(tok string) error           { return m.logoutFn(tok) }
-func (m *mockAuthSvc) LogoutAll(id uuid.UUID) error      { return m.logoutAllFn(id) }
+func (m *mockAuthSvc) Logout(tok string) error      { return m.logoutFn(tok) }
+func (m *mockAuthSvc) LogoutAll(id uuid.UUID) error { return m.logoutAllFn(id) }
 
 type mockAuthUserRepo struct {
 	findByIDFn func(id uuid.UUID) (*models.User, error)

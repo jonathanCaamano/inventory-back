@@ -142,11 +142,11 @@ func (m *mockMinioSvc) DeleteObject(key string) {
 
 func fakeProduct() *models.Product {
 	return &models.Product{
-		ID:    uuid.New(),
-		Name:  "Test Product",
-		Price: 9.99,
-		Stock: 10,
-		SKU:   "SKU-001",
+		ID:     uuid.New(),
+		Name:   "Test Product",
+		Price:  9.99,
+		Stock:  10,
+		SKU:    "SKU-001",
 		Active: true,
 	}
 }

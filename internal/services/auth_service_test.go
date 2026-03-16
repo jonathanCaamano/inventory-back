@@ -37,9 +37,9 @@ func (m *mockUserRepo) UpdateLastLogin(id uuid.UUID) error {
 }
 
 type mockTokenRepo struct {
-	create         func(t *models.RefreshToken) error
-	findByHash     func(hash string) (*models.RefreshToken, error)
-	revokeByHash   func(hash string) error
+	create           func(t *models.RefreshToken) error
+	findByHash       func(hash string) (*models.RefreshToken, error)
+	revokeByHash     func(hash string) error
 	revokeAllForUser func(id uuid.UUID) error
 }
 
@@ -424,7 +424,7 @@ func TestValidatePassword(t *testing.T) {
 	}{
 		{"validPass1", false},
 		{"Abcdefg1", false},
-		{"short1", true},  // < 8 chars
+		{"short1", true}, // < 8 chars
 		{"noDIGIT!", true},
 		{"12345678", true},
 		{"", true},
