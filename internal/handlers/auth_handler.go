@@ -19,11 +19,13 @@ type authService interface {
 	Logout(rawToken string) error
 	LogoutAll(userID uuid.UUID) error
 	HashPassword(password string) (string, error)
+	CheckPassword(hash, plain string) bool
 }
 
 type authUserRepo interface {
 	FindByID(id uuid.UUID) (*models.User, error)
 	Create(user *models.User) error
+	Update(user *models.User) error
 }
 
 type AuthHandler struct {
@@ -52,6 +54,13 @@ type registerRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=50"`
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=8"`
+}
+
+type updateMeRequest struct {
+	Username        string `json:"username" binding:"omitempty,min=3,max=50"`
+	Email           string `json:"email" binding:"omitempty,email"`
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password" binding:"omitempty,min=8"`
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -184,4 +193,53 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		"expires_at":    pair.ExpiresAt,
 		"user":          user,
 	})
+}
+
+func (h *AuthHandler) UpdateMe(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	user, err := h.userRepo.FindByID(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	var req updateMeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Username != "" {
+		user.Username = req.Username
+	}
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.NewPassword != "" {
+		if req.CurrentPassword == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "current_password is required to change password"})
+			return
+		}
+		if !h.authSvc.CheckPassword(user.PasswordHash, req.CurrentPassword) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "current password is incorrect"})
+			return
+		}
+		hash, err := h.authSvc.HashPassword(req.NewPassword)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		user.PasswordHash = hash
+	}
+
+	if err := h.userRepo.Update(user); err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "username or email already in use"})
+		return
+	}
+	c.JSON(http.StatusOK, user)
 }

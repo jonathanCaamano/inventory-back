@@ -152,6 +152,11 @@ func (s *AuthService) ValidateAccessToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
+// CheckPassword verifies a plaintext password against a bcrypt hash.
+func (s *AuthService) CheckPassword(hash, plain string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(plain)) == nil
+}
+
 // HashPassword hashes a plaintext password after validating strength.
 func (s *AuthService) HashPassword(password string) (string, error) {
 	if err := validatePassword(password); err != nil {

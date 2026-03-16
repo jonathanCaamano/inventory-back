@@ -283,6 +283,16 @@ func (h *ProductHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	// Managers can only delete products they created
+	role, _ := middleware.GetUserRole(c)
+	if role == models.RoleManager {
+		userID, ok := middleware.GetUserID(c)
+		if !ok || product.CreatedByID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "you can only delete products you created"})
+			return
+		}
+	}
+
 	// Delete image from MinIO (best-effort, errors are logged inside DeleteObject)
 	if product.ImageKey != "" && h.minioSvc != nil {
 		h.minioSvc.DeleteObject(product.ImageKey)

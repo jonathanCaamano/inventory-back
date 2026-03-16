@@ -139,6 +139,7 @@ func main() {
 	auth.Use(middleware.AuthRequired(authSvc))
 	{
 		auth.GET("/auth/me", authHandler.Me)
+		auth.PATCH("/auth/me", authHandler.UpdateMe)
 		auth.POST("/auth/logout", authHandler.Logout)
 		auth.POST("/auth/logout-all", authHandler.LogoutAll)
 
@@ -156,18 +157,16 @@ func main() {
 		{
 			manage.POST("/products", productHandler.Create)
 			manage.PUT("/products/:id", productHandler.Update)
+			manage.DELETE("/products/:id", productHandler.Delete)
 			manage.POST("/products/:id/image", productHandler.UploadImage)
 			manage.PATCH("/products/:id/stock", productHandler.AdjustStock)
 			manage.PUT("/products/:id/contact", contactHandler.Upsert)
 			manage.DELETE("/products/:id/contact", contactHandler.Delete)
 		}
 
-		// Products — admin only
+		// Admin only group
 		adminOnly := auth.Group("")
 		adminOnly.Use(middleware.RequireRole(models.RoleAdmin))
-		{
-			adminOnly.DELETE("/products/:id", productHandler.Delete)
-		}
 
 		// Categories — viewer+
 		auth.GET("/categories", categoryHandler.List)
