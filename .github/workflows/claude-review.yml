@@ -1,0 +1,47 @@
+name: Claude PR Review
+
+on:
+  # Auto-review on every new PR and every new commit pushed to a PR
+  pull_request:
+    types: [opened, synchronize, reopened]
+  # Also respond to @claude mentions in PR comments
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  claude-review:
+    name: Claude code review
+    runs-on: ubuntu-latest
+    # Only run on PRs (issue_comment fires on issues too)
+    if: >
+      github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review_comment' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null)
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so Claude can see the full diff
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Runs automatically on pull_request events.
+          # On comment events it responds to @claude mentions.
+          prompt: |
+            Review this pull request for the inventory-back Go service.
+            Focus on:
+            - Correctness and logic errors
+            - Security vulnerabilities (SQL injection, auth bypasses, unvalidated input)
+            - Error handling — ensure all errors are checked and propagated correctly
+            - Go idioms and best practices
+            - Potential race conditions or concurrency issues
+            Post inline comments on specific lines where you find issues, and a
+            summary comment with an overall assessment.
