@@ -24,9 +24,9 @@ var allowedMIMETypes = map[string]string{
 }
 
 type MinIOService struct {
-	client    *minio.Client
-	bucket    string
-	maxBytes  int64
+	client   *minio.Client
+	bucket   string
+	maxBytes int64
 }
 
 func NewMinIOService(cfg *config.Config) (*MinIOService, error) {

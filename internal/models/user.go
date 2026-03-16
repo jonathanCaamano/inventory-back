@@ -16,15 +16,15 @@ const (
 )
 
 type User struct {
-	ID           uuid.UUID  `gorm:"type:uuid;primary_key" json:"id"`
-	Username     string     `gorm:"uniqueIndex;not null" json:"username"`
-	Email        string     `gorm:"uniqueIndex;not null" json:"email"`
-	PasswordHash string     `gorm:"not null" json:"-"`
-	Role         Role       `gorm:"type:varchar(20);not null;default:'viewer'" json:"role"`
-	Active       bool       `gorm:"not null;default:true" json:"active"`
-	LastLogin    *time.Time `json:"last_login,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID           uuid.UUID      `gorm:"type:uuid;primary_key" json:"id"`
+	Username     string         `gorm:"uniqueIndex;not null" json:"username"`
+	Email        string         `gorm:"uniqueIndex;not null" json:"email"`
+	PasswordHash string         `gorm:"not null" json:"-"`
+	Role         Role           `gorm:"type:varchar(20);not null;default:'viewer'" json:"role"`
+	Active       bool           `gorm:"not null;default:true" json:"active"`
+	LastLogin    *time.Time     `json:"last_login,omitempty"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }
 

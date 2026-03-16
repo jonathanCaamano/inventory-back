@@ -8,12 +8,12 @@ import (
 )
 
 type RefreshToken struct {
-	ID        uuid.UUID  `gorm:"type:uuid;primary_key" json:"id"`
-	UserID    uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
-	TokenHash string     `gorm:"not null;uniqueIndex" json:"-"` // SHA-256 hash of raw token
-	ExpiresAt time.Time  `gorm:"not null" json:"expires_at"`
-	Revoked   bool       `gorm:"not null;default:false" json:"revoked"`
-	CreatedAt time.Time  `json:"created_at"`
+	ID        uuid.UUID      `gorm:"type:uuid;primary_key" json:"id"`
+	UserID    uuid.UUID      `gorm:"type:uuid;not null;index" json:"user_id"`
+	TokenHash string         `gorm:"not null;uniqueIndex" json:"-"` // SHA-256 hash of raw token
+	ExpiresAt time.Time      `gorm:"not null" json:"expires_at"`
+	Revoked   bool           `gorm:"not null;default:false" json:"revoked"`
+	CreatedAt time.Time      `json:"created_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 

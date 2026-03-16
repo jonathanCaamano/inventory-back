@@ -16,14 +16,14 @@ func NewStatsHandler(db *gorm.DB) *StatsHandler {
 }
 
 type InventoryStats struct {
-	TotalProducts    int64   `json:"total_products"`
-	ActiveProducts   int64   `json:"active_products"`
-	TotalCategories  int64   `json:"total_categories"`
-	TotalStock       int64   `json:"total_stock"`
-	StockValue       float64 `json:"stock_value"`
-	OutOfStock       int64   `json:"out_of_stock"`
-	LowStock         int64   `json:"low_stock"`   // stock <= 5
-	TotalUsers       int64   `json:"total_users"`
+	TotalProducts   int64   `json:"total_products"`
+	ActiveProducts  int64   `json:"active_products"`
+	TotalCategories int64   `json:"total_categories"`
+	TotalStock      int64   `json:"total_stock"`
+	StockValue      float64 `json:"stock_value"`
+	OutOfStock      int64   `json:"out_of_stock"`
+	LowStock        int64   `json:"low_stock"` // stock <= 5
+	TotalUsers      int64   `json:"total_users"`
 }
 
 func (h *StatsHandler) GetStats(c *gin.Context) {

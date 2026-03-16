@@ -37,11 +37,11 @@ type TokenPair struct {
 }
 
 type AuthService struct {
-	userRepo    *repository.UserRepository
-	tokenRepo   *repository.RefreshTokenRepository
-	jwtSecret   []byte
-	accessTTL   time.Duration
-	refreshTTL  time.Duration
+	userRepo   *repository.UserRepository
+	tokenRepo  *repository.RefreshTokenRepository
+	jwtSecret  []byte
+	accessTTL  time.Duration
+	refreshTTL time.Duration
 }
 
 func NewAuthService(

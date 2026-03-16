@@ -15,7 +15,7 @@ type Config struct {
 	// Server
 	Port           string
 	Env            string
-	MaxRequestSize int64  // bytes
+	MaxRequestSize int64 // bytes
 	AllowedOrigins []string
 
 	// Database
@@ -27,8 +27,8 @@ type Config struct {
 	DBSSLMode  string
 
 	// JWT
-	JWTSecret          string
-	JWTAccessTTLHours  int
+	JWTSecret         string
+	JWTAccessTTLHours int
 
 	// MinIO
 	MinIOEndpoint  string

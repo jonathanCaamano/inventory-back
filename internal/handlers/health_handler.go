@@ -10,8 +10,8 @@ import (
 )
 
 type HealthHandler struct {
-	db        *gorm.DB
-	minioOK   func() bool // optional check, nil means MinIO not configured
+	db      *gorm.DB
+	minioOK func() bool // optional check, nil means MinIO not configured
 }
 
 func NewHealthHandler(db *gorm.DB, minioCheck func() bool) *HealthHandler {
