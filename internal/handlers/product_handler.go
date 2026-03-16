@@ -62,9 +62,8 @@ type CreateProductRequest struct {
 	Name        string     `json:"name" binding:"required,min=1,max=200"`
 	Description string     `json:"description" binding:"max=2000"`
 	Price       float64    `json:"price" binding:"gte=0"`
-	Stock       int        `json:"stock" binding:"gte=0"`
-	SKU         string     `json:"sku" binding:"omitempty,max=100"`
 	CategoryID  *uuid.UUID `json:"category_id"`
+	Paid        *bool      `json:"paid"`
 	Active      *bool      `json:"active"`
 }
 
@@ -72,9 +71,8 @@ type UpdateProductRequest struct {
 	Name        *string    `json:"name" binding:"omitempty,min=1,max=200"`
 	Description *string    `json:"description" binding:"omitempty,max=2000"`
 	Price       *float64   `json:"price" binding:"omitempty,gte=0"`
-	Stock       *int       `json:"stock" binding:"omitempty,gte=0"`
-	SKU         *string    `json:"sku" binding:"omitempty,max=100"`
 	CategoryID  *uuid.UUID `json:"category_id"`
+	Paid        *bool      `json:"paid"`
 	Active      *bool      `json:"active"`
 }
 
@@ -167,27 +165,23 @@ func (h *ProductHandler) Create(c *gin.Context) {
 		}
 	}
 
-	// Check SKU uniqueness
-	if req.SKU != "" {
-		if _, err := h.productRepo.FindBySKU(req.SKU); err == nil {
-			c.JSON(http.StatusConflict, gin.H{"error": "SKU already exists"})
-			return
-		}
-	}
-
 	active := true
 	if req.Active != nil {
 		active = *req.Active
+	}
+
+	paid := false
+	if req.Paid != nil {
+		paid = *req.Paid
 	}
 
 	product := &models.Product{
 		Name:        req.Name,
 		Description: req.Description,
 		Price:       req.Price,
-		Stock:       req.Stock,
-		SKU:         req.SKU,
 		CategoryID:  req.CategoryID,
 		CreatedByID: userID,
+		Paid:        paid,
 		Active:      active,
 	}
 
@@ -229,14 +223,6 @@ func (h *ProductHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// SKU uniqueness check (only if changing to a different SKU)
-	if req.SKU != nil && *req.SKU != "" && *req.SKU != product.SKU {
-		if existing, err := h.productRepo.FindBySKU(*req.SKU); err == nil && existing.ID != product.ID {
-			c.JSON(http.StatusConflict, gin.H{"error": "SKU already in use"})
-			return
-		}
-	}
-
 	// Category existence check
 	if req.CategoryID != nil {
 		if _, err := h.categoryRepo.FindByID(*req.CategoryID); err != nil {
@@ -254,14 +240,11 @@ func (h *ProductHandler) Update(c *gin.Context) {
 	if req.Price != nil {
 		product.Price = *req.Price
 	}
-	if req.Stock != nil {
-		product.Stock = *req.Stock
-	}
-	if req.SKU != nil {
-		product.SKU = *req.SKU
-	}
 	if req.CategoryID != nil {
 		product.CategoryID = req.CategoryID
+	}
+	if req.Paid != nil {
+		product.Paid = *req.Paid
 	}
 	if req.Active != nil {
 		product.Active = *req.Active

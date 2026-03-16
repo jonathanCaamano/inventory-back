@@ -20,6 +20,7 @@ type Product struct {
 	Category    *Category      `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
 	CreatedByID uuid.UUID      `gorm:"type:uuid;not null" json:"created_by_id"`
 	CreatedBy   *User          `gorm:"foreignKey:CreatedByID" json:"created_by,omitempty"`
+	Paid        bool           `gorm:"not null;default:false" json:"paid"`
 	Active      bool           `gorm:"not null;default:true" json:"active"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
