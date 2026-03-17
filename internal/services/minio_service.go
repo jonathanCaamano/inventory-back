@@ -69,20 +69,21 @@ func (s *MinIOService) ensureBucket() error {
 		if err := s.client.MakeBucket(ctx, s.bucket, minio.MakeBucketOptions{}); err != nil {
 			return fmt.Errorf("create bucket: %w", err)
 		}
-		// Set read-only policy for product images prefix
-		policy := fmt.Sprintf(`{
-			"Version":"2012-10-17",
-			"Statement":[{
-				"Effect":"Allow",
-				"Principal":{"AWS":["*"]},
-				"Action":["s3:GetObject"],
-				"Resource":["arn:aws:s3:::%s/products/*"]
-			}]
-		}`, s.bucket)
-		if err := s.client.SetBucketPolicy(ctx, s.bucket, policy); err != nil {
-			slog.Warn("could not set bucket policy", slog.String("error", err.Error()))
-		}
 		slog.Info("minio bucket created", slog.String("bucket", s.bucket))
+	}
+	// Apply public-read policy for products/* on every startup so existing
+	// buckets also get the policy (not only newly created ones).
+	policy := fmt.Sprintf(`{
+		"Version":"2012-10-17",
+		"Statement":[{
+			"Effect":"Allow",
+			"Principal":{"AWS":["*"]},
+			"Action":["s3:GetObject"],
+			"Resource":["arn:aws:s3:::%s/products/*"]
+		}]
+	}`, s.bucket)
+	if err := s.client.SetBucketPolicy(ctx, s.bucket, policy); err != nil {
+		slog.Warn("could not set bucket policy", slog.String("error", err.Error()))
 	}
 	return nil
 }
@@ -132,22 +133,27 @@ func (s *MinIOService) UploadProductImage(file multipart.File, header *multipart
 	return objectKey, nil
 }
 
-// GetPresignedURL returns a pre-signed GET URL for an object.
-// If MINIO_PUBLIC_URL is configured, the scheme and host of the URL are
-// replaced so browsers can reach MinIO through its public address.
-func (s *MinIOService) GetPresignedURL(objectKey string, expiry time.Duration) (string, error) {
+// GetPresignedURL returns a URL for accessing an object.
+// When MINIO_PUBLIC_URL is configured the bucket has public-read policy, so
+// a stable direct URL is returned (no expiry, no credentials in the URL).
+// Without MINIO_PUBLIC_URL a presigned URL is generated against the internal
+// MinIO endpoint (suitable for local development where the browser can reach
+// MinIO directly).
+func (s *MinIOService) GetPresignedURL(objectKey string, _ time.Duration) (string, error) {
 	if objectKey == "" {
 		return "", nil
 	}
+	if s.publicURL != nil {
+		// Direct URL: {publicURL}/{bucket}/{objectKey}
+		direct := *s.publicURL
+		direct.Path = "/" + s.bucket + "/" + objectKey
+		return direct.String(), nil
+	}
 	u, err := s.client.PresignedGetObject(
-		context.Background(), s.bucket, objectKey, expiry, url.Values{},
+		context.Background(), s.bucket, objectKey, time.Hour, url.Values{},
 	)
 	if err != nil {
 		return "", fmt.Errorf("presign: %w", err)
-	}
-	if s.publicURL != nil {
-		u.Scheme = s.publicURL.Scheme
-		u.Host = s.publicURL.Host
 	}
 	return u.String(), nil
 }
