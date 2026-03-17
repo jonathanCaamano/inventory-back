@@ -1,11 +1,23 @@
 package models
 
 import (
+	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+const skuChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+func generateSKU() string {
+	b := make([]byte, 6)
+	for i := range b {
+		b[i] = skuChars[rand.Intn(len(skuChars))]
+	}
+	return fmt.Sprintf("REP-%s", string(b))
+}
 
 // Product status values.
 const (
@@ -38,6 +50,21 @@ type Product struct {
 func (p *Product) BeforeCreate(tx *gorm.DB) error {
 	if p.ID == uuid.Nil {
 		p.ID = uuid.New()
+	}
+	if p.SKU == "" {
+		// Auto-generate a unique SKU (REP-XXXXXX); retry on collision
+		for attempts := 0; attempts < 10; attempts++ {
+			candidate := generateSKU()
+			var count int64
+			tx.Model(&Product{}).Where("sku = ?", candidate).Count(&count)
+			if count == 0 {
+				p.SKU = candidate
+				break
+			}
+		}
+		if p.SKU == "" {
+			p.SKU = fmt.Sprintf("REP-%s", p.ID.String()[:8])
+		}
 	}
 	return nil
 }
