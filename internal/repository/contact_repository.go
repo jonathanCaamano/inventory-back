@@ -27,7 +27,7 @@ func (r *ContactRepository) FindByProductID(productID uuid.UUID) (*models.Contac
 func (r *ContactRepository) Upsert(contact *models.Contact) error {
 	return r.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "product_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"name", "subdato", "email", "phone", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"name", "email", "phone", "updated_at"}),
 	}).Create(contact).Error
 }
 

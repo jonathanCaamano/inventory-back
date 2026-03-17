@@ -9,7 +9,7 @@ import (
 type ProductFilter struct {
 	CategoryID *uuid.UUID
 	Search     string
-	Active     *bool
+	Status     *string
 	Paid       *bool
 	Page       int
 	PageSize   int
@@ -42,8 +42,8 @@ func (r *ProductRepository) FindAll(filter ProductFilter) ([]models.Product, int
 		query = query.Where("name ILIKE ? OR description ILIKE ? OR sku ILIKE ?",
 			"%"+filter.Search+"%", "%"+filter.Search+"%", "%"+filter.Search+"%")
 	}
-	if filter.Active != nil {
-		query = query.Where("active = ?", *filter.Active)
+	if filter.Status != nil {
+		query = query.Where("status = ?", *filter.Status)
 	}
 	if filter.Paid != nil {
 		query = query.Where("paid = ?", *filter.Paid)

@@ -11,7 +11,7 @@ type Contact struct {
 	ID        uuid.UUID      `gorm:"type:uuid;primary_key" json:"id"`
 	ProductID uuid.UUID      `gorm:"type:uuid;not null;uniqueIndex" json:"product_id"`
 	Name      string         `gorm:"not null" json:"name"`
-	Subdato   string         `gorm:"not null" json:"subdato"`
+	Subdato   string         `gorm:"column:subdato;default:''" json:"-"` // kept for DB compat; removed from API
 	Email     string         `json:"email,omitempty"`
 	Phone     string         `json:"phone,omitempty"`
 	CreatedAt time.Time      `json:"created_at"`
