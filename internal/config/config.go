@@ -36,7 +36,8 @@ type Config struct {
 	MinIOSecretKey string
 	MinIOBucket    string
 	MinIOUseSSL    bool
-	MinIOMaxSizeMB int64 // max upload size in MB
+	MinIOMaxSizeMB int64  // max upload size in MB
+	MinIOPublicURL string // public base URL to rewrite presigned URL host (e.g. https://minio.example.com)
 }
 
 func Load() (*Config, error) {
@@ -95,6 +96,7 @@ func Load() (*Config, error) {
 		MinIOBucket:    getEnv("MINIO_BUCKET", "inventory"),
 		MinIOUseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
 		MinIOMaxSizeMB: minioMaxMB,
+		MinIOPublicURL: getEnv("MINIO_PUBLIC_URL", ""),
 	}
 
 	return cfg, nil

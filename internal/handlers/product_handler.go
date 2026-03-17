@@ -23,6 +23,9 @@ type productRepository interface {
 	Create(product *models.Product) error
 	Update(product *models.Product) error
 	Delete(id uuid.UUID) error
+	CreateImage(img *models.ProductImage) error
+	FindImageByID(imageID, productID uuid.UUID) (*models.ProductImage, error)
+	DeleteImage(imageID uuid.UUID) error
 }
 
 type categoryRepository interface {
@@ -92,6 +95,10 @@ func (h *ProductHandler) List(c *gin.Context) {
 		v := s == "true"
 		filter.Active = &v
 	}
+	if s := c.Query("paid"); s != "" {
+		v := s == "true"
+		filter.Paid = &v
+	}
 
 	products, total, err := h.productRepo.FindAll(filter)
 	if err != nil {
@@ -127,12 +134,10 @@ func (h *ProductHandler) Get(c *gin.Context) {
 		return
 	}
 
-	if product.ImageKey != "" && h.minioSvc != nil {
-		if url, err := h.minioSvc.GetPresignedURL(product.ImageKey, time.Hour); err != nil {
-			slog.Warn("presign url", slog.String("key", product.ImageKey), slog.String("error", err.Error()))
-		} else {
-			product.ImageURL = url
-		}
+	if h.minioSvc != nil {
+		slice := []models.Product{*product}
+		h.enrichImageURLs(slice)
+		*product = slice[0]
 	}
 
 	c.JSON(http.StatusOK, product)
@@ -250,12 +255,10 @@ func (h *ProductHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if product.ImageKey != "" && h.minioSvc != nil {
-		if url, err := h.minioSvc.GetPresignedURL(product.ImageKey, time.Hour); err != nil {
-			slog.Warn("presign url", slog.String("key", product.ImageKey), slog.String("error", err.Error()))
-		} else {
-			product.ImageURL = url
-		}
+	if h.minioSvc != nil {
+		slice := []models.Product{*product}
+		h.enrichImageURLs(slice)
+		*product = slice[0]
 	}
 	c.JSON(http.StatusOK, product)
 }
@@ -287,9 +290,16 @@ func (h *ProductHandler) Delete(c *gin.Context) {
 		}
 	}
 
-	// Delete image from MinIO (best-effort, errors are logged inside DeleteObject)
-	if product.ImageKey != "" && h.minioSvc != nil {
-		h.minioSvc.DeleteObject(product.ImageKey)
+	// Delete all images from MinIO (best-effort)
+	if h.minioSvc != nil {
+		if product.ImageKey != "" {
+			h.minioSvc.DeleteObject(product.ImageKey)
+		}
+		for _, img := range product.Images {
+			if img.ImageKey != "" {
+				h.minioSvc.DeleteObject(img.ImageKey)
+			}
+		}
 	}
 
 	if err := h.productRepo.Delete(id); err != nil {
@@ -353,25 +363,125 @@ func (h *ProductHandler) UploadImage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"image_url": imageURL})
 }
 
-// enrichImageURLs populates ImageURL from ImageKey for a slice of products.
+// enrichImageURLs populates ImageURL from ImageKey for a slice of products,
+// and also populates each ProductImage's ImageURL from its ImageKey.
 func (h *ProductHandler) enrichImageURLs(products []models.Product) {
 	if h.minioSvc == nil {
 		return
 	}
 	for i := range products {
-		if products[i].ImageKey == "" {
-			continue
+		if products[i].ImageKey != "" {
+			if url, err := h.minioSvc.GetPresignedURL(products[i].ImageKey, time.Hour); err != nil {
+				slog.Warn("presign url for list",
+					slog.String("key", products[i].ImageKey),
+					slog.String("error", err.Error()),
+				)
+			} else {
+				products[i].ImageURL = url
+			}
 		}
-		url, err := h.minioSvc.GetPresignedURL(products[i].ImageKey, time.Hour)
-		if err != nil {
-			slog.Warn("presign url for list",
-				slog.String("key", products[i].ImageKey),
-				slog.String("error", err.Error()),
-			)
-			continue
+		for j := range products[i].Images {
+			if products[i].Images[j].ImageKey == "" {
+				continue
+			}
+			url, err := h.minioSvc.GetPresignedURL(products[i].Images[j].ImageKey, time.Hour)
+			if err != nil {
+				slog.Warn("presign url for image",
+					slog.String("key", products[i].Images[j].ImageKey),
+					slog.String("error", err.Error()),
+				)
+				continue
+			}
+			products[i].Images[j].ImageURL = url
 		}
-		products[i].ImageURL = url
 	}
+}
+
+// AddImage uploads a new image and appends it to the product's image gallery.
+func (h *ProductHandler) AddImage(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID"})
+		return
+	}
+	product, err := h.productRepo.FindByID(id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch product"})
+		return
+	}
+	if h.minioSvc == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "image storage not available"})
+		return
+	}
+
+	file, header, err := c.Request.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "image file required"})
+		return
+	}
+	defer func() { _ = file.Close() }()
+
+	objectKey, err := h.minioSvc.UploadProductImage(file, header)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	position := len(product.Images)
+	img := &models.ProductImage{
+		ProductID: id,
+		ImageKey:  objectKey,
+		Position:  position,
+	}
+	if err := h.productRepo.CreateImage(img); err != nil {
+		h.minioSvc.DeleteObject(objectKey)
+		slog.Error("create product image", slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save image"})
+		return
+	}
+
+	imageURL, _ := h.minioSvc.GetPresignedURL(objectKey, time.Hour)
+	img.ImageURL = imageURL
+	c.JSON(http.StatusCreated, img)
+}
+
+// DeleteImage removes a single image from the product gallery.
+func (h *ProductHandler) DeleteImage(c *gin.Context) {
+	productID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID"})
+		return
+	}
+	imageID, err := uuid.Parse(c.Param("imageId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid image ID"})
+		return
+	}
+
+	img, err := h.productRepo.FindImageByID(imageID, productID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "image not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch image"})
+		return
+	}
+
+	if h.minioSvc != nil && img.ImageKey != "" {
+		h.minioSvc.DeleteObject(img.ImageKey)
+	}
+
+	if err := h.productRepo.DeleteImage(imageID); err != nil {
+		slog.Error("delete product image", slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete image"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "image deleted"})
 }
 
 // ---------------------------------------------------------------------------

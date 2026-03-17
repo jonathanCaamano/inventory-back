@@ -70,6 +70,7 @@ func Migrate(db *gorm.DB) error {
 		&models.Category{},
 		&models.Product{},
 		&models.Contact{},
+		&models.ProductImage{},
 		&models.RefreshToken{},
 	)
 }

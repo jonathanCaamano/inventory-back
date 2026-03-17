@@ -24,9 +24,10 @@ var allowedMIMETypes = map[string]string{
 }
 
 type MinIOService struct {
-	client   *minio.Client
-	bucket   string
-	maxBytes int64
+	client    *minio.Client
+	bucket    string
+	maxBytes  int64
+	publicURL *url.URL // optional: rewrite presigned URL host for browser access
 }
 
 func NewMinIOService(cfg *config.Config) (*MinIOService, error) {
@@ -38,10 +39,19 @@ func NewMinIOService(cfg *config.Config) (*MinIOService, error) {
 		return nil, fmt.Errorf("minio client: %w", err)
 	}
 
+	var publicURL *url.URL
+	if cfg.MinIOPublicURL != "" {
+		publicURL, err = url.Parse(cfg.MinIOPublicURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid MINIO_PUBLIC_URL: %w", err)
+		}
+	}
+
 	svc := &MinIOService{
-		client:   client,
-		bucket:   cfg.MinIOBucket,
-		maxBytes: cfg.MinIOMaxSizeMB * 1024 * 1024,
+		client:    client,
+		bucket:    cfg.MinIOBucket,
+		maxBytes:  cfg.MinIOMaxSizeMB * 1024 * 1024,
+		publicURL: publicURL,
 	}
 	if err := svc.ensureBucket(); err != nil {
 		return nil, err
@@ -123,6 +133,8 @@ func (s *MinIOService) UploadProductImage(file multipart.File, header *multipart
 }
 
 // GetPresignedURL returns a pre-signed GET URL for an object.
+// If MINIO_PUBLIC_URL is configured, the scheme and host of the URL are
+// replaced so browsers can reach MinIO through its public address.
 func (s *MinIOService) GetPresignedURL(objectKey string, expiry time.Duration) (string, error) {
 	if objectKey == "" {
 		return "", nil
@@ -132,6 +144,10 @@ func (s *MinIOService) GetPresignedURL(objectKey string, expiry time.Duration) (
 	)
 	if err != nil {
 		return "", fmt.Errorf("presign: %w", err)
+	}
+	if s.publicURL != nil {
+		u.Scheme = s.publicURL.Scheme
+		u.Host = s.publicURL.Host
 	}
 	return u.String(), nil
 }

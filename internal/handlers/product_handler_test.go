@@ -17,11 +17,14 @@ import (
 // ── mocks ────────────────────────────────────────────────────────────────────
 
 type mockProductRepo struct {
-	findAllFn  func(filter repository.ProductFilter) ([]models.Product, int64, error)
-	findByIDFn func(id uuid.UUID) (*models.Product, error)
-	createFn   func(product *models.Product) error
-	updateFn   func(product *models.Product) error
-	deleteFn   func(id uuid.UUID) error
+	findAllFn       func(filter repository.ProductFilter) ([]models.Product, int64, error)
+	findByIDFn      func(id uuid.UUID) (*models.Product, error)
+	createFn        func(product *models.Product) error
+	updateFn        func(product *models.Product) error
+	deleteFn        func(id uuid.UUID) error
+	createImageFn   func(img *models.ProductImage) error
+	findImageByIDFn func(imageID, productID uuid.UUID) (*models.ProductImage, error)
+	deleteImageFn   func(imageID uuid.UUID) error
 }
 
 func (m *mockProductRepo) FindAll(filter repository.ProductFilter) ([]models.Product, int64, error) {
@@ -55,6 +58,27 @@ func (m *mockProductRepo) Update(product *models.Product) error {
 func (m *mockProductRepo) Delete(id uuid.UUID) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(id)
+	}
+	return nil
+}
+
+func (m *mockProductRepo) CreateImage(img *models.ProductImage) error {
+	if m.createImageFn != nil {
+		return m.createImageFn(img)
+	}
+	return nil
+}
+
+func (m *mockProductRepo) FindImageByID(imageID, productID uuid.UUID) (*models.ProductImage, error) {
+	if m.findImageByIDFn != nil {
+		return m.findImageByIDFn(imageID, productID)
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (m *mockProductRepo) DeleteImage(imageID uuid.UUID) error {
+	if m.deleteImageFn != nil {
+		return m.deleteImageFn(imageID)
 	}
 	return nil
 }
