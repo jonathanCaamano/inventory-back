@@ -133,7 +133,7 @@ func fakeProduct() *models.Product {
 		ID:     uuid.New(),
 		Name:   "Test Product",
 		Price:  9.99,
-		Active: true,
+		Status: models.ProductStatusEnProgreso,
 	}
 }
 

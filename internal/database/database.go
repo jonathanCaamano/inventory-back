@@ -65,12 +65,34 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 }
 
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&models.User{},
 		&models.Category{},
 		&models.Product{},
 		&models.Contact{},
 		&models.ProductImage{},
 		&models.RefreshToken{},
-	)
+	); err != nil {
+		return err
+	}
+	return runCompatMigrations(db)
+}
+
+// runCompatMigrations applies one-off SQL changes that AutoMigrate cannot
+// handle (e.g. relaxing constraints on existing columns).
+func runCompatMigrations(db *gorm.DB) error {
+	stmts := []string{
+		// contacts.subdato was previously NOT NULL; the field is no longer
+		// part of the API so new inserts omit it — make it nullable.
+		`ALTER TABLE contacts ALTER COLUMN subdato DROP NOT NULL`,
+		// Give existing products without a status the default value.
+		`UPDATE products SET status = 'en_progreso' WHERE status = '' OR status IS NULL`,
+	}
+	for _, stmt := range stmts {
+		if err := db.Exec(stmt).Error; err != nil {
+			// Log but don't fail — statement may already be applied.
+			slog.Warn("compat migration skipped", slog.String("stmt", stmt), slog.String("error", err.Error()))
+		}
+	}
+	return nil
 }

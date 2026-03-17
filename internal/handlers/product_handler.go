@@ -60,13 +60,19 @@ func NewProductHandler(
 	}
 }
 
+var validStatuses = map[string]bool{
+	models.ProductStatusReparado:   true,
+	models.ProductStatusEnProgreso: true,
+	models.ProductStatusNoReparado: true,
+}
+
 type CreateProductRequest struct {
 	Name        string     `json:"name" binding:"required,min=1,max=200"`
 	Description string     `json:"description" binding:"max=2000"`
 	Price       float64    `json:"price" binding:"gte=0"`
 	CategoryID  *uuid.UUID `json:"category_id"`
 	Paid        *bool      `json:"paid"`
-	Active      *bool      `json:"active"`
+	Status      string     `json:"status"`
 }
 
 type UpdateProductRequest struct {
@@ -75,7 +81,7 @@ type UpdateProductRequest struct {
 	Price       *float64   `json:"price" binding:"omitempty,gte=0"`
 	CategoryID  *uuid.UUID `json:"category_id"`
 	Paid        *bool      `json:"paid"`
-	Active      *bool      `json:"active"`
+	Status      *string    `json:"status"`
 }
 
 func (h *ProductHandler) List(c *gin.Context) {
@@ -91,9 +97,8 @@ func (h *ProductHandler) List(c *gin.Context) {
 	if catID, err := uuid.Parse(c.Query("category_id")); err == nil {
 		filter.CategoryID = &catID
 	}
-	if s := c.Query("active"); s != "" {
-		v := s == "true"
-		filter.Active = &v
+	if s := c.Query("status"); s != "" && validStatuses[s] {
+		filter.Status = &s
 	}
 	if s := c.Query("paid"); s != "" {
 		v := s == "true"
@@ -164,9 +169,13 @@ func (h *ProductHandler) Create(c *gin.Context) {
 		}
 	}
 
-	active := true
-	if req.Active != nil {
-		active = *req.Active
+	status := models.ProductStatusEnProgreso
+	if req.Status != "" {
+		if !validStatuses[req.Status] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status; allowed: reparado, en_progreso, no_reparado"})
+			return
+		}
+		status = req.Status
 	}
 
 	paid := false
@@ -181,7 +190,7 @@ func (h *ProductHandler) Create(c *gin.Context) {
 		CategoryID:  req.CategoryID,
 		CreatedByID: userID,
 		Paid:        paid,
-		Active:      active,
+		Status:      status,
 	}
 
 	if err := h.productRepo.Create(product); err != nil {
@@ -245,8 +254,12 @@ func (h *ProductHandler) Update(c *gin.Context) {
 	if req.Paid != nil {
 		product.Paid = *req.Paid
 	}
-	if req.Active != nil {
-		product.Active = *req.Active
+	if req.Status != nil {
+		if !validStatuses[*req.Status] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status; allowed: reparado, en_progreso, no_reparado"})
+			return
+		}
+		product.Status = *req.Status
 	}
 
 	if err := h.productRepo.Update(product); err != nil {

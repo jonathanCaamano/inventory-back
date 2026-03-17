@@ -34,10 +34,9 @@ func NewContactHandler(
 }
 
 type UpsertContactRequest struct {
-	Name    string `json:"name"    binding:"required,min=1,max=200"`
-	Subdato string `json:"subdato" binding:"required,min=1,max=200"`
-	Email   string `json:"email"   binding:"omitempty,email"`
-	Phone   string `json:"phone"   binding:"omitempty,max=50"`
+	Name  string `json:"name"  binding:"required,min=1,max=200"`
+	Email string `json:"email" binding:"omitempty,email"`
+	Phone string `json:"phone" binding:"omitempty,max=50"`
 }
 
 func (h *ContactHandler) Get(c *gin.Context) {
@@ -84,7 +83,6 @@ func (h *ContactHandler) Upsert(c *gin.Context) {
 	contact := &models.Contact{
 		ProductID: productID,
 		Name:      req.Name,
-		Subdato:   req.Subdato,
 		Email:     req.Email,
 		Phone:     req.Phone,
 	}
