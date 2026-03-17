@@ -6,10 +6,12 @@ import (
 	"gorm.io/gorm"
 )
 
+
 type ProductFilter struct {
 	CategoryID *uuid.UUID
 	Search     string
 	Active     *bool
+	Paid       *bool
 	Page       int
 	PageSize   int
 }
@@ -29,7 +31,10 @@ func (r *ProductRepository) FindAll(filter ProductFilter) ([]models.Product, int
 	query := r.db.Model(&models.Product{}).
 		Preload("Category").
 		Preload("CreatedBy").
-		Preload("Contact")
+		Preload("Contact").
+		Preload("Images", func(db *gorm.DB) *gorm.DB {
+			return db.Order("position ASC, created_at ASC")
+		})
 
 	if filter.CategoryID != nil {
 		query = query.Where("category_id = ?", filter.CategoryID)
@@ -40,6 +45,9 @@ func (r *ProductRepository) FindAll(filter ProductFilter) ([]models.Product, int
 	}
 	if filter.Active != nil {
 		query = query.Where("active = ?", *filter.Active)
+	}
+	if filter.Paid != nil {
+		query = query.Where("paid = ?", *filter.Paid)
 	}
 
 	query.Count(&total)
@@ -58,7 +66,13 @@ func (r *ProductRepository) FindAll(filter ProductFilter) ([]models.Product, int
 
 func (r *ProductRepository) FindByID(id uuid.UUID) (*models.Product, error) {
 	var product models.Product
-	if err := r.db.Preload("Category").Preload("CreatedBy").Preload("Contact").
+	if err := r.db.
+		Preload("Category").
+		Preload("CreatedBy").
+		Preload("Contact").
+		Preload("Images", func(db *gorm.DB) *gorm.DB {
+			return db.Order("position ASC, created_at ASC")
+		}).
 		First(&product, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
@@ -83,6 +97,22 @@ func (r *ProductRepository) Update(product *models.Product) error {
 
 func (r *ProductRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&models.Product{}, "id = ?", id).Error
+}
+
+func (r *ProductRepository) CreateImage(img *models.ProductImage) error {
+	return r.db.Create(img).Error
+}
+
+func (r *ProductRepository) FindImageByID(imageID, productID uuid.UUID) (*models.ProductImage, error) {
+	var img models.ProductImage
+	if err := r.db.Where("id = ? AND product_id = ?", imageID, productID).First(&img).Error; err != nil {
+		return nil, err
+	}
+	return &img, nil
+}
+
+func (r *ProductRepository) DeleteImage(imageID uuid.UUID) error {
+	return r.db.Delete(&models.ProductImage{}, "id = ?", imageID).Error
 }
 
 type CategoryRepository struct {

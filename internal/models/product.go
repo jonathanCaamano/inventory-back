@@ -20,6 +20,7 @@ type Product struct {
 	CreatedByID uuid.UUID      `gorm:"type:uuid;not null" json:"created_by_id"`
 	CreatedBy   *User          `gorm:"foreignKey:CreatedByID" json:"created_by,omitempty"`
 	Contact     *Contact       `gorm:"foreignKey:ProductID" json:"contact,omitempty"`
+	Images      []ProductImage `gorm:"foreignKey:ProductID" json:"images,omitempty"`
 	Paid        bool           `gorm:"not null;default:false" json:"paid"`
 	Active      bool           `gorm:"not null;default:true" json:"active"`
 	CreatedAt   time.Time      `json:"created_at"`
