@@ -52,14 +52,16 @@ func (p *Product) BeforeCreate(tx *gorm.DB) error {
 		p.ID = uuid.New()
 	}
 	if p.SKU == "" {
-		// Auto-generate a unique SKU (REP-XXXXXX); retry on collision
-		for attempts := 0; attempts < 10; attempts++ {
-			candidate := generateSKU()
-			var count int64
-			tx.Model(&Product{}).Where("sku = ?", candidate).Count(&count)
-			if count == 0 {
-				p.SKU = candidate
-				break
+		// Auto-generate a unique SKU (REP-XXXXXX); retry on collision when DB is available
+		if tx != nil {
+			for attempts := 0; attempts < 10; attempts++ {
+				candidate := generateSKU()
+				var count int64
+				tx.Model(&Product{}).Where("sku = ?", candidate).Count(&count)
+				if count == 0 {
+					p.SKU = candidate
+					break
+				}
 			}
 		}
 		if p.SKU == "" {
