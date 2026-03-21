@@ -31,8 +31,8 @@ type Product struct {
 	Name              string         `gorm:"not null" json:"name"`
 	RepairDescription string         `gorm:"column:description" json:"repair_description"`
 	RepairReference   string         `json:"repair_reference,omitempty"`
-	EntryDate         *time.Time     `json:"entry_date,omitempty"`
-	ExitDate          *time.Time     `json:"exit_date,omitempty"`
+	EntryDate         *DateOnly      `json:"entry_date,omitempty"`
+	ExitDate          *DateOnly      `json:"exit_date,omitempty"`
 	Observations      string         `json:"observations,omitempty"`
 	Price             float64        `gorm:"not null;default:0" json:"price"`
 	SKU               string         `gorm:"uniqueIndex" json:"sku,omitempty"`

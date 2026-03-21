@@ -67,29 +67,29 @@ var validStatuses = map[string]bool{
 }
 
 type CreateProductRequest struct {
-	Name              string     `json:"name" binding:"required,min=1,max=200"`
-	RepairDescription string     `json:"repair_description" binding:"max=2000"`
-	RepairReference   string     `json:"repair_reference" binding:"max=200"`
-	EntryDate         *time.Time `json:"entry_date"`
-	ExitDate          *time.Time `json:"exit_date"`
-	Observations      string     `json:"observations" binding:"max=2000"`
-	Price             *float64   `json:"price" binding:"omitempty,gte=0"`
-	CategoryID        *uuid.UUID `json:"category_id"`
-	Paid              *bool      `json:"paid"`
-	Status            string     `json:"status"`
+	Name              string           `json:"name" binding:"required,min=1,max=200"`
+	RepairDescription string           `json:"repair_description" binding:"max=2000"`
+	RepairReference   string           `json:"repair_reference" binding:"max=200"`
+	EntryDate         *models.DateOnly `json:"entry_date"`
+	ExitDate          *models.DateOnly `json:"exit_date"`
+	Observations      string           `json:"observations" binding:"max=2000"`
+	Price             *float64         `json:"price" binding:"omitempty,gte=0"`
+	CategoryID        *uuid.UUID       `json:"category_id"`
+	Paid              *bool            `json:"paid"`
+	Status            string           `json:"status"`
 }
 
 type UpdateProductRequest struct {
-	Name              *string    `json:"name" binding:"omitempty,min=1,max=200"`
-	RepairDescription *string    `json:"repair_description" binding:"omitempty,max=2000"`
-	RepairReference   *string    `json:"repair_reference" binding:"omitempty,max=200"`
-	EntryDate         *time.Time `json:"entry_date"`
-	ExitDate          *time.Time `json:"exit_date"`
-	Observations      *string    `json:"observations" binding:"omitempty,max=2000"`
-	Price             *float64   `json:"price" binding:"omitempty,gte=0"`
-	CategoryID        *uuid.UUID `json:"category_id"`
-	Paid              *bool      `json:"paid"`
-	Status            *string    `json:"status"`
+	Name              *string          `json:"name" binding:"omitempty,min=1,max=200"`
+	RepairDescription *string          `json:"repair_description" binding:"omitempty,max=2000"`
+	RepairReference   *string          `json:"repair_reference" binding:"omitempty,max=200"`
+	EntryDate         *models.DateOnly `json:"entry_date"`
+	ExitDate          *models.DateOnly `json:"exit_date"`
+	Observations      *string          `json:"observations" binding:"omitempty,max=2000"`
+	Price             *float64         `json:"price" binding:"omitempty,gte=0"`
+	CategoryID        *uuid.UUID       `json:"category_id"`
+	Paid              *bool            `json:"paid"`
+	Status            *string          `json:"status"`
 }
 
 func (h *ProductHandler) List(c *gin.Context) {
