@@ -50,11 +50,11 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "1"
+              memory: "1Gi"
             limits:
-              cpu: "500m"
-              memory: "256Mi"
+              cpu: "1"
+              memory: "1Gi"
 ---
 apiVersion: v1
 kind: Service
