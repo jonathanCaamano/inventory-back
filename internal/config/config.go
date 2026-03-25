@@ -1,95 +1,121 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
-	"time"
+	"strings"
+
+	"github.com/joho/godotenv"
 )
 
+const minJWTSecretLength = 32
+
 type Config struct {
-	HTTPAddr  string
-	DBURL     string
-	JWTSecret string
-	JWTTTL    time.Duration
-	Env       string
+	// Server
+	Port           string
+	Env            string
+	MaxRequestSize int64 // bytes
+	AllowedOrigins []string
 
-	BootstrapAdminUsername string
-	BootstrapAdminPassword string
+	// Database
+	DBHost     string
+	DBPort     string
+	DBUser     string
+	DBPassword string
+	DBName     string
+	DBSSLMode  string
 
-	S3Endpoint       string
-	S3Region         string
-	S3Bucket         string
-	S3AccessKey      string
-	S3SecretKey      string
-	S3ForcePathStyle bool
-	S3PublicBaseURL  string
+	// JWT
+	JWTSecret         string
+	JWTAccessTTLHours int
 
-	DevNoDeps bool
+	// MinIO
+	MinIOEndpoint  string
+	MinIOAccessKey string
+	MinIOSecretKey string
+	MinIOBucket    string
+	MinIOUseSSL    bool
+	MinIOMaxSizeMB int64  // max upload size in MB
+	MinIOPublicURL string // public base URL to rewrite presigned URL host (e.g. https://minio.example.com)
 }
 
-func Load() Config {
-	env := get("ENV", "dev")
+func Load() (*Config, error) {
+	_ = godotenv.Load()
 
-	cfg := Config{
-		Env:       env,
-		HTTPAddr:  get("HTTP_ADDR", ":8080"),
-		JWTSecret: get("JWT_SECRET", "dev-secret"),
-		JWTTTL:    time.Duration(getInt("JWT_TTL_MINUTES", 30)) * time.Minute,
-
-		BootstrapAdminUsername: get("BOOTSTRAP_ADMIN_USERNAME", "admin"),
-		BootstrapAdminPassword: get("BOOTSTRAP_ADMIN_PASSWORD", "admin"),
-		DBURL:                  get("DATABASE_URL", "postgres://user:pass@test.example.com:5432/inventory?sslmode=disable"),
-
-		S3Endpoint:       get("S3_ENDPOINT", "http://test.example.com"),
-		S3Region:         get("S3_REGION", "us-east-1"),
-		S3Bucket:         get("S3_BUCKET", "inventory"),
-		S3AccessKey:      get("S3_ACCESS_KEY", "test"),
-		S3SecretKey:      get("S3_SECRET_KEY", "test"),
-		S3ForcePathStyle: get("S3_FORCE_PATH_STYLE", "true") == "true",
-		S3PublicBaseURL:  get("S3_PUBLIC_BASE_URL", "http://test.example.com/inventory"),
-
-		DevNoDeps: get("DEV_NO_DEPS", "false") == "true",
+	jwtSecret := getEnv("JWT_SECRET", "")
+	if len(jwtSecret) < minJWTSecretLength {
+		return nil, fmt.Errorf(
+			"JWT_SECRET must be at least %d characters (got %d)",
+			minJWTSecretLength, len(jwtSecret),
+		)
 	}
 
-	// En producción, exigimos variables críticas y no permitimos bootstrap por defecto
-	if isProd(env) {
-		if cfg.JWTSecret == "dev-secret" {
-			panic("JWT_SECRET must be set in production")
-		}
-		if cfg.BootstrapAdminUsername == "admin" && cfg.BootstrapAdminPassword == "admin" {
-			panic("BOOTSTRAP_ADMIN_USERNAME/BOOTSTRAP_ADMIN_PASSWORD must be set in production")
-		}
-		if cfg.DBURL == "" {
-			panic("DATABASE_URL must be set in production")
-		}
-		if cfg.S3Endpoint == "" || cfg.S3AccessKey == "" || cfg.S3SecretKey == "" {
-			panic("S3 configuration must be set in production")
+	accessTTL, _ := strconv.Atoi(getEnv("JWT_ACCESS_TTL_HOURS", "24"))
+	if accessTTL <= 0 {
+		accessTTL = 24
+	}
+
+	maxSize, _ := strconv.ParseInt(getEnv("MAX_REQUEST_SIZE_MB", "10"), 10, 64)
+	if maxSize <= 0 {
+		maxSize = 10
+	}
+
+	minioMaxMB, _ := strconv.ParseInt(getEnv("MINIO_MAX_UPLOAD_MB", "5"), 10, 64)
+	if minioMaxMB <= 0 {
+		minioMaxMB = 5
+	}
+
+	originsRaw := getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+	origins := []string{}
+	for _, o := range strings.Split(originsRaw, ",") {
+		if o = strings.TrimSpace(o); o != "" {
+			origins = append(origins, o)
 		}
 	}
 
-	return cfg
+	cfg := &Config{
+		Port:           getEnv("PORT", "8080"),
+		Env:            getEnv("ENV", "development"),
+		MaxRequestSize: maxSize * 1024 * 1024,
+		AllowedOrigins: origins,
+
+		DBHost:     getEnv("DB_HOST", "localhost"),
+		DBPort:     getEnv("DB_PORT", "5432"),
+		DBUser:     getEnv("DB_USER", "inventory"),
+		DBPassword: getEnv("DB_PASSWORD", "inventory"),
+		DBName:     getEnv("DB_NAME", "inventory"),
+		DBSSLMode:  getEnv("DB_SSL_MODE", "disable"),
+
+		JWTSecret:         jwtSecret,
+		JWTAccessTTLHours: accessTTL,
+
+		MinIOEndpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
+		MinIOAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
+		MinIOSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
+		MinIOBucket:    getEnv("MINIO_BUCKET", "inventory"),
+		MinIOUseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
+		MinIOMaxSizeMB: minioMaxMB,
+		MinIOPublicURL: getEnv("MINIO_PUBLIC_URL", ""),
+	}
+
+	return cfg, nil
 }
 
-func get(k, def string) string {
-	v := os.Getenv(k)
-	if v == "" {
-		return def
-	}
-	return v
+func (c *Config) DSN() string {
+	return fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=UTC",
+		c.DBHost, c.DBUser, c.DBPassword, c.DBName, c.DBPort, c.DBSSLMode,
+	)
 }
 
-func getInt(k string, def int) int {
-	v := os.Getenv(k)
-	if v == "" {
-		return def
-	}
-	n, err := strconv.Atoi(v)
-	if err != nil {
-		return def
-	}
-	return n
+func (c *Config) IsProduction() bool {
+	return c.Env == "production"
 }
 
-func isProd(env string) bool {
-	return env == "prod" || env == "production"
+func getEnv(key, defaultValue string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return defaultValue
 }

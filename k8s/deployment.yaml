@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-back
+  namespace: taller-inventario
+  labels:
+    app: inventory-back
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventory-back
+  template:
+    metadata:
+      labels:
+        app: inventory-back
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: inventory-back
+          # Image is updated by CI/CD via `kubectl set image`
+          image: ghcr.io/jonathancaamano/inventory-back:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MINIO_PUBLIC_URL
+              value: https://minio.jcrlabs.net
+          envFrom:
+            - configMapRef:
+                name: inventory-back-config
+            - secretRef:
+                name: inventory-back-secrets
+          # /livez always returns 200 — safe for liveness (no external deps)
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+          # /health checks DB + MinIO — used for readiness
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-back-service
+  namespace: taller-inventario
+spec:
+  selector:
+    app: inventory-back
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: inventory-back-ingress
+  namespace: taller-inventario
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: invent-back.jcrlabs.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: inventory-back-service
+                port:
+                  number: 8080

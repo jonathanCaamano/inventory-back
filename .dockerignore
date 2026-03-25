@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+
+bin/
+*.test
+*.out
+
+.git/
+.github/
+
+docs/
+examples/
+helm/
+
+*.md
+!README.md

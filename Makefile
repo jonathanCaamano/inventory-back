@@ -4,7 +4,7 @@ BIN=bin/api
 VERSION ?= dev
 IMAGE ?= ghcr.io/jonathancaamano/$(APP):$(VERSION)
 
-GOLANGCI_LINT_VERSION ?= v2.8.0
+GOLANGCI_LINT_VERSION ?= v1.64.8
 MIGRATE ?= migrate
 DB_URL ?= $(DATABASE_URL)
 
@@ -44,11 +44,11 @@ test:
 
 .PHONY: build
 build:
-	go build -o $(BIN) ./cmd/api
+	go build -o $(BIN) ./cmd/server
 
 .PHONY: run
 run:
-	HTTP_ADDR=:8080 go run ./cmd/api
+	go run ./cmd/server
 
 .PHONY: docker-build
 docker-build:
