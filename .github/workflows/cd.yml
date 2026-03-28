@@ -3,7 +3,6 @@ name: CD
 on:
   push:
     branches: [main]
-    tags: ["v*.*.*"]
 
 permissions:
   contents: read
@@ -22,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      image-tag: ${{ steps.meta.outputs.version }}
+      version: ${{ steps.version.outputs.value }}
 
     steps:
       - uses: actions/checkout@v4
@@ -48,18 +47,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # push to main → latest + sha-<short>
-      # push v1.2.3  → 1.2.3 + 1.2 + latest
-      - name: Extract image metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Read version
+        id: version
+        run: |
+          VERSION="v$(cat VERSION)"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "value=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -67,8 +61,9 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.IMAGE }}:${{ env.VERSION }}
+            ${{ env.IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -105,11 +100,7 @@ jobs:
       - name: Resolve image tag
         id: tag
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-          fi
+          echo "value=${{ needs.build-push.outputs.version }}" >> "$GITHUB_OUTPUT"
 
       # ── Namespace & ConfigMap ────────────────────────────────────────────────
       - name: Apply namespace
