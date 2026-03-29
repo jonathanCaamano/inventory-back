@@ -20,7 +20,7 @@ spec:
       containers:
         - name: inventory-back
           # Image is updated by CI/CD via `kubectl set image`
-          image: ghcr.io/jonathancaamano/inventory-back:latest
+          image: ghcr.io/jcrlabs/inventory-back:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

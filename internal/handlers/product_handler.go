@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"mime/multipart"
@@ -66,6 +67,12 @@ var validStatuses = map[string]bool{
 	models.ProductStatusNoReparado: true,
 }
 
+var validSortCols = map[string]bool{
+	"entry_date": true,
+	"exit_date":  true,
+	"created_at": true,
+}
+
 type CreateProductRequest struct {
 	Name              string           `json:"name" binding:"required,min=1,max=200"`
 	RepairDescription string           `json:"repair_description" binding:"max=2000"`
@@ -79,12 +86,15 @@ type CreateProductRequest struct {
 	Status            string           `json:"status"`
 }
 
+// UpdateProductRequest uses *json.RawMessage for date fields so we can distinguish
+// between a field that was not sent (nil pointer) and one explicitly set to null
+// (pointer to raw bytes containing "null"), enabling the caller to clear a date.
 type UpdateProductRequest struct {
 	Name              *string          `json:"name" binding:"omitempty,min=1,max=200"`
 	RepairDescription *string          `json:"repair_description" binding:"omitempty,max=2000"`
 	RepairReference   *string          `json:"repair_reference" binding:"omitempty,max=200"`
-	EntryDate         *models.DateOnly `json:"entry_date"`
-	ExitDate          *models.DateOnly `json:"exit_date"`
+	EntryDate         *json.RawMessage `json:"entry_date"`
+	ExitDate          *json.RawMessage `json:"exit_date"`
 	Observations      *string          `json:"observations" binding:"omitempty,max=2000"`
 	Price             *float64         `json:"price" binding:"omitempty,gte=0"`
 	CategoryID        *uuid.UUID       `json:"category_id"`
@@ -111,6 +121,12 @@ func (h *ProductHandler) List(c *gin.Context) {
 	if s := c.Query("paid"); s != "" {
 		v := s == "true"
 		filter.Paid = &v
+	}
+	if s := c.Query("sort_by"); s != "" && validSortCols[s] {
+		filter.SortBy = s
+	}
+	if s := c.Query("sort_order"); s == "asc" || s == "desc" {
+		filter.SortOrder = s
 	}
 
 	products, total, err := h.productRepo.FindAll(filter)
@@ -225,6 +241,26 @@ func (h *ProductHandler) Create(c *gin.Context) {
 	}
 }
 
+// parseDateField interprets a *json.RawMessage date field:
+// - nil means the field was not present in the request (no change)
+// - "null" or empty string means explicitly clear the date
+// - otherwise parse as DateOnly
+// Returns (date, changed, error). changed=true means the field should be updated.
+func parseDateField(raw *json.RawMessage) (*models.DateOnly, bool, error) {
+	if raw == nil {
+		return nil, false, nil
+	}
+	s := string(*raw)
+	if s == "null" || s == `""` || s == "" {
+		return nil, true, nil
+	}
+	var d models.DateOnly
+	if err := json.Unmarshal(*raw, &d); err != nil {
+		return nil, false, err
+	}
+	return &d, true, nil
+}
+
 func (h *ProductHandler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -265,12 +301,25 @@ func (h *ProductHandler) Update(c *gin.Context) {
 	if req.RepairReference != nil {
 		product.RepairReference = *req.RepairReference
 	}
-	if req.EntryDate != nil {
-		product.EntryDate = req.EntryDate
+
+	entryDate, entryChanged, entryErr := parseDateField(req.EntryDate)
+	if entryErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid entry_date format"})
+		return
 	}
-	if req.ExitDate != nil {
-		product.ExitDate = req.ExitDate
+	if entryChanged {
+		product.EntryDate = entryDate
 	}
+
+	exitDate, exitChanged, exitErr := parseDateField(req.ExitDate)
+	if exitErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid exit_date format"})
+		return
+	}
+	if exitChanged {
+		product.ExitDate = exitDate
+	}
+
 	if req.Observations != nil {
 		product.Observations = *req.Observations
 	}

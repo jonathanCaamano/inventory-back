@@ -112,7 +112,7 @@ jobs:
 
                 subgraph GitHub
                     GHActions[GitHub Actions CI/CD]
-                    GHCR[ghcr.io/jonathancaamano/inventory-back]
+                    GHCR[ghcr.io/jcrlabs/inventory-back]
                 end
 
                 subgraph "Kubernetes — namespace: taller-inventario"

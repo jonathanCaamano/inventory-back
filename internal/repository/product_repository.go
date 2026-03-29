@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/jonathanCaamano/inventory-back/internal/models"
 	"gorm.io/gorm"
@@ -13,6 +15,8 @@ type ProductFilter struct {
 	Paid       *bool
 	Page       int
 	PageSize   int
+	SortBy     string // entry_date | exit_date | created_at
+	SortOrder  string // asc | desc
 }
 
 type ProductRepository struct {
@@ -56,7 +60,26 @@ func (r *ProductRepository) FindAll(filter ProductFilter) ([]models.Product, int
 		query = query.Offset(offset).Limit(filter.PageSize)
 	}
 
-	if err := query.Order("created_at DESC").Find(&products).Error; err != nil {
+	// Determine sort column and direction
+	sortCol := "created_at"
+	validCols := map[string]bool{"entry_date": true, "exit_date": true, "created_at": true}
+	if filter.SortBy != "" && validCols[filter.SortBy] {
+		sortCol = filter.SortBy
+	}
+	sortDir := "DESC"
+	if filter.SortOrder == "asc" {
+		sortDir = "ASC"
+	}
+
+	var orderExpr string
+	if sortCol == "created_at" {
+		orderExpr = fmt.Sprintf("created_at %s", sortDir)
+	} else {
+		// For nullable date columns, always sort NULLs last
+		orderExpr = fmt.Sprintf("%s %s NULLS LAST", sortCol, sortDir)
+	}
+
+	if err := query.Order(orderExpr).Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
 
